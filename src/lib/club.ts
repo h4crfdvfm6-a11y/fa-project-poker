@@ -530,7 +530,9 @@ export async function closeTable(tableId: string) {
     );
     if (!cleared.length) return; // already left / paid
     const seat = cleared[0]!;
-    const pay = Math.max(0, amount);
+    // Prefer live seat stack at clear time so an in-flight buy-in that landed
+    // after a stale snapshot is not paid as 0 and lost.
+    const pay = Math.max(0, amount, num(seat.stack));
     // Tournament chips are not club chips — closing forfeits like leaveTable.
     if (isTournament || pay <= 0) return;
     try {
@@ -569,8 +571,8 @@ export async function closeTable(tableId: string) {
       await takeSeatAndPay(seat.memberId, stack + inPot, Boolean(seat.isBot));
     }
   } else if (atShowdown && state?.seats) {
-    // Pay players still in table_seats (leave already cashed + cleared).
-    // max(seat, state) includes BBJP/squid awards persisted on state_json.
+    // Floor from state_json (BBJP/squid awards); live seat stack wins if higher
+    // (in-flight buy-in completed between list and clear).
     const stateStack = new Map<string, { stack: number; isBot: boolean }>();
     for (const seat of state.seats) {
       if (!seat.memberId) continue;
@@ -581,36 +583,44 @@ export async function closeTable(tableId: string) {
     }
     const seated = await sql<{
       member_id: string;
-      stack: string | number;
       is_bot: boolean;
     }>(
-      `select member_id, stack, is_bot from table_seats
+      `select member_id, is_bot from table_seats
        where table_id = $1 and member_id is not null`,
       [tableId],
     );
     for (const seat of seated) {
       const fromState = stateStack.get(seat.member_id);
-      const refund = Math.max(num(seat.stack), fromState?.stack || 0);
       await takeSeatAndPay(
         seat.member_id,
-        refund,
+        fromState?.stack || 0,
         seat.is_bot || Boolean(fromState?.isBot),
       );
     }
   } else {
-    // Waiting / no live hand: cash out whatever seats remain.
+    // Waiting / no live hand: cash out whatever seats remain (live stack at clear).
     const seated = await sql<{
       member_id: string;
-      stack: string | number;
       is_bot: boolean;
     }>(
-      `select member_id, stack, is_bot from table_seats
+      `select member_id, is_bot from table_seats
        where table_id = $1 and member_id is not null`,
       [tableId],
     );
     for (const seat of seated) {
-      await takeSeatAndPay(seat.member_id, num(seat.stack), seat.is_bot);
+      await takeSeatAndPay(seat.member_id, 0, seat.is_bot);
     }
+  }
+
+  // Sweep any seat still occupied (e.g. sit claimed before close, buy-in after
+  // mid-hand payouts) using live stack only.
+  const leftover = await sql<{ member_id: string; is_bot: boolean }>(
+    `select member_id, is_bot from table_seats
+     where table_id = $1 and member_id is not null`,
+    [tableId],
+  );
+  for (const seat of leftover) {
+    await takeSeatAndPay(seat.member_id, 0, seat.is_bot);
   }
 
   // Return unfinished squid pot from the frozen snapshot (consistent ante flag).
