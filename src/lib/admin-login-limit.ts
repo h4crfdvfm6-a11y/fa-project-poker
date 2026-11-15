@@ -1,14 +1,16 @@
 /**
- * Admin PIN brute-force throttle backed by security_throttle (shared across instances).
+ * Admin PIN brute-force throttle — keyed per client so one attacker
+ * cannot lock out all admin logins.
  */
 
+import { clientKeyFromRequest } from "./client-key";
 import {
   clearThrottle,
   recordThrottleFailure,
   throttleBlocked,
 } from "./security-throttle";
 
-const KEY = "admin-pin";
+const PREFIX = "admin-pin:";
 const MAX_FAILURES = 5;
 
 let gate: Promise<void> = Promise.resolve();
@@ -23,19 +25,22 @@ export function withAdminLoginGate<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-export async function adminLoginBlocked(): Promise<
-  { blocked: true; retryAfterSec: number } | null
-> {
-  return throttleBlocked(KEY);
+function keyFor(request: Request): string {
+  return PREFIX + clientKeyFromRequest(request);
 }
 
-export async function recordAdminLoginFailure(): Promise<{
-  locked: boolean;
-  retryAfterSec: number;
-}> {
-  return recordThrottleFailure(KEY, MAX_FAILURES);
+export async function adminLoginBlocked(
+  request: Request,
+): Promise<{ blocked: true; retryAfterSec: number } | null> {
+  return throttleBlocked(keyFor(request));
 }
 
-export async function clearAdminLoginFailures() {
-  await clearThrottle(KEY);
+export async function recordAdminLoginFailure(
+  request: Request,
+): Promise<{ locked: boolean; retryAfterSec: number }> {
+  return recordThrottleFailure(keyFor(request), MAX_FAILURES);
+}
+
+export async function clearAdminLoginFailures(request: Request) {
+  await clearThrottle(keyFor(request));
 }

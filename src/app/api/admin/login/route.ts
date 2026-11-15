@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { pin?: string };
 
   return withAdminLoginGate(async () => {
-    const blocked = await adminLoginBlocked();
+    const blocked = await adminLoginBlocked(request);
     if (blocked) {
       return Response.json(
         { error: "Too many failed attempts — try again later" },
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     if (!body.pin || !adminPinOk(body.pin)) {
-      const result = await recordAdminLoginFailure();
+      const result = await recordAdminLoginFailure(request);
       if (result.locked) {
         return Response.json(
           { error: "Too many failed attempts — try again later" },
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Wrong admin PIN" }, { status: 401 });
     }
 
-    await clearAdminLoginFailures();
+    await clearAdminLoginFailures(request);
     await setAdminSession();
     return Response.json({ ok: true });
   });

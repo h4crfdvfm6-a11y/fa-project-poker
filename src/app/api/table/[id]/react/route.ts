@@ -9,6 +9,14 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
+  // Only return in-memory reactions; listReactions never allocates for unknown ids.
+  const exists = await sql<{ id: string }>(
+    `select id from cash_tables where id = $1 limit 1`,
+    [id],
+  );
+  if (!exists.length) {
+    return Response.json({ reactions: [], emojis: freeEmojis() });
+  }
   return Response.json({
     reactions: listReactions(id),
     emojis: freeEmojis(),

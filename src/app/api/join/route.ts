@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const csrf = assertSameOrigin(request);
   if (csrf) return csrf;
 
-  const blocked = await inviteGuessBlocked();
+  const blocked = await inviteGuessBlocked(request);
   if (blocked) {
     return Response.json(
       { error: "Too many failed invite attempts — try again later" },
@@ -34,13 +34,13 @@ export async function POST(request: Request) {
   }
   try {
     const member = await joinByInvite(body.inviteCode, body.displayName);
-    await clearInviteGuessFailures();
+    await clearInviteGuessFailures(request);
     await setPlayerSession(member.id);
     return Response.json({ member });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed";
     if (message.toLowerCase().includes("invalid club invite")) {
-      const result = await recordInviteGuessFailure();
+      const result = await recordInviteGuessFailure(request);
       if (result.locked) {
         return Response.json(
           { error: "Too many failed invite attempts — try again later" },
