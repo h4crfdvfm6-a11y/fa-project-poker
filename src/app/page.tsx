@@ -13,7 +13,7 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
             background:
-              "radial-gradient(circle at 80% 20%, rgba(231,197,106,.22), transparent 40%), radial-gradient(circle at 20% 80%, rgba(44,21,24,.75), transparent 45%)",
+              "radial-gradient(circle at 80% 20%, rgba(246,199,74,.22), transparent 40%), radial-gradient(circle at 20% 80%, rgba(16,6,159,.55), transparent 45%)",
           }}
         />
         <div className="relative">
