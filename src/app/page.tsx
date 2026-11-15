@@ -26,15 +26,15 @@ export default function HomePage() {
             Run the club.
           </h1>
           <p className="mb-6 max-w-sm text-sm leading-relaxed text-[var(--muted)]">
-            Open tables with rake, create tournaments, fund BBJP, and add
-            players — built for Android and iPhone.
+            Private club poker for friends — Texas Hold&apos;em and all PLOs,
+            admin tables with rake, club chips only. No bots. No cash-out.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="/lobby" className="btn btn-gold">
               Enter club lobby
             </Link>
-            <Link href="/shop" className="btn btn-ghost">
-              Shop skins & chips
+            <Link href="/admin" className="btn btn-ghost">
+              Club admin
             </Link>
           </div>
         </div>
@@ -42,9 +42,9 @@ export default function HomePage() {
 
       <section className="mt-6 grid gap-3">
         {[
-          ["Virtual economy", "Gems buy chips, table skins, avatars — never cash out."],
-          ["Tables + rake", "NLH, PLO, Short Deck, AoF, Bomb Pot and more."],
-          ["Coach practice", "Learn off the live table with beginner tips."],
+          ["Real players", "Invite friends with your club code — humans only."],
+          ["Tables + rake", "NLH, PLO, PLO5, PLO6, PLO Hi-Lo with club rake."],
+          ["Free club chips", "Social play balances — never redeem for cash."],
         ].map(([title, copy]) => (
           <div key={title} className="panel px-4 py-4">
             <div className="mb-1 font-semibold text-[var(--gold-strong)]">

@@ -22,19 +22,6 @@ type LobbyData = {
     buyin_min: string | number;
     buyin_max: string | number;
   }>;
-  tournaments: Array<{
-    id: string;
-    title: string;
-    buy_in: string | number;
-    fee: string | number;
-    starting_stack: number;
-    max_players: number;
-    entries: string | number;
-    status: string;
-    table_id?: string | null;
-    prize_pool?: string | number;
-    blind_level?: number;
-  }>;
   bbjp: {
     balance: string | number;
     enabled: boolean;
@@ -43,7 +30,6 @@ type LobbyData = {
     minimum_hand?: string;
   };
   me: { id: string; display_name: string; chip_balance: string | number } | null;
-  myTournamentIds: string[];
 };
 
 function money(v: string | number) {
@@ -55,36 +41,11 @@ export default function LobbyPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
-  const [busy, setBusy] = useState(false);
-
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
     setData(json);
   }, []);
-
-  async function toggleMtt(tournamentId: string, registered: boolean) {
-    if (!data?.me) {
-      setError("Join the club first");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const res = await fetch(`/api/tournaments/${tournamentId}/register`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action: registered ? "unregister" : "register",
-      }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Tournament action failed");
-      return;
-    }
-    await load();
-  }
 
   useEffect(() => {
     void load();
@@ -124,12 +85,6 @@ export default function LobbyPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/shop" className="btn btn-ghost !py-2 !text-sm">
-            Shop
-          </Link>
-          <Link href="/coach" className="btn btn-ghost !py-2 !text-sm">
-            Coach
-          </Link>
           <Link href="/admin" className="btn btn-ghost !py-2 !text-sm">
             Admin
           </Link>
@@ -235,58 +190,6 @@ export default function LobbyPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="brand mb-3 text-2xl">Tournaments</h2>
-        <div className="grid gap-3">
-          {data.tournaments.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">No scheduled tournaments.</p>
-          ) : (
-            data.tournaments.map((t) => {
-              const registered = (data.myTournamentIds || []).includes(t.id);
-              const running = t.status === "running" && t.table_id;
-              return (
-                <article key={t.id} className="panel p-4">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <h3 className="font-semibold">{t.title}</h3>
-                    <span className="chip">{t.status}</span>
-                  </div>
-                  <p className="text-sm text-[var(--muted)]">
-                    Buy-in {money(t.buy_in)} + {money(t.fee)} · Stack{" "}
-                    {money(t.starting_stack)}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--gold)]">
-                    {Number(t.entries)} / {t.max_players} registered
-                    {registered ? " · You’re in" : ""}
-                    {running && t.prize_pool != null
-                      ? ` · prize ${money(t.prize_pool)}`
-                      : ""}
-                  </p>
-                  {running && registered ? (
-                    <Link
-                      href={`/table/${t.table_id}`}
-                      className="btn btn-gold mt-3 !py-2 !text-sm"
-                    >
-                      Play tournament
-                    </Link>
-                  ) : t.status === "scheduled" ? (
-                    <button
-                      className={`btn mt-3 !py-2 !text-sm ${registered ? "btn-ghost" : "btn-gold"}`}
-                      disabled={busy || !data.me}
-                      onClick={() => toggleMtt(t.id, registered)}
-                    >
-                      {registered ? "Unregister" : "Register"}
-                    </button>
-                  ) : running ? (
-                    <p className="mt-3 text-sm text-[var(--muted)]">
-                      In progress — register next time to play.
-                    </p>
-                  ) : null}
-                </article>
-              );
-            })
-          )}
-        </div>
-      </section>
     </main>
   );
 }

@@ -419,23 +419,6 @@ export default function TablePage() {
     if (json.emojis) setEmojis(json.emojis);
   }
 
-  async function addBot() {
-    setBusy(true);
-    setError("");
-    const res = await fetch(`/api/table/${tableId}/bot`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Could not add AI");
-      return;
-    }
-    setView(json);
-  }
-
   if (!view) {
     return (
       <main className="mx-auto max-w-lg px-5 py-10 text-[var(--muted)]">
@@ -655,14 +638,6 @@ export default function TablePage() {
             onChange={(e) => setBuyIn(e.target.value)}
             title="Buy-in"
           />
-          <button
-            className="btn btn-ghost !py-2 !text-sm"
-            disabled={busy}
-            onClick={addBot}
-            title="Admin only — AI stacks come from club float"
-          >
-            Add AI seat (admin)
-          </button>
           {seated ? (
             <button
               className="btn btn-danger !py-2 !text-sm"

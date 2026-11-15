@@ -355,20 +355,15 @@ export async function createTable(input: {
     throw new Error("Rake percent must be between 0 and 20");
   }
   await ensureTablePlaySchema();
-  const gameType: GameType = isGameType(input.gameType ?? "NLH")
-    ? (input.gameType as GameType)
-    : "NLH";
+  const requested = input.gameType ?? "NLH";
+  const clubGames: GameType[] = ["NLH", "PLO", "PLO5", "PLO6", "PLO_HILO"];
+  if (!clubGames.includes(requested as GameType)) {
+    throw new Error("Club tables support Texas Hold'em and PLO variants only");
+  }
+  const gameType = requested as GameType;
   // Leave room for 5 board + burns: PLO6 needs ≤7 seats on a 52-card deck.
   const maxSeats =
-    gameType === "OFC_PINEAPPLE"
-      ? 3
-      : gameType === "PLO6"
-        ? 6
-        : gameType === "PLO5"
-          ? 7
-          : gameType === "SHORT_DECK"
-            ? 6
-            : 9;
+    gameType === "PLO6" ? 6 : gameType === "PLO5" ? 7 : 9;
   const seats = Math.max(2, Math.min(maxSeats, Math.floor(input.seats) || 6));
   const squidTarget = Math.max(1, Math.min(9, Math.floor(input.squidTarget ?? 3) || 3));
   const cucuruchoAnteBb = Math.max(
@@ -403,9 +398,9 @@ export async function createTable(input: {
       input.rakeCapBb,
       input.bbjpEnabled,
       input.isPrivate,
-      Boolean(input.squidEnabled),
+      false, // club v1: no Squid side pots
       squidTarget,
-      Boolean(input.cucuruchoEnabled),
+      false, // club v1: no Cucurucho
       cucuruchoAnteBb,
       cucuruchoEveryHands,
     ],
