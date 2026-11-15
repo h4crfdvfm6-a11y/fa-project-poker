@@ -428,6 +428,8 @@ export async function closeTable(tableId: string) {
     memberId?: string;
     stack?: number;
     bet?: number;
+    /** Total chips put into the pot this hand (includes current-street bet). */
+    contributed?: number;
     isBot?: boolean;
   };
   type RuntimeState = {
@@ -485,22 +487,22 @@ export async function closeTable(tableId: string) {
     Boolean(state?.seats?.length) && street === "showdown";
 
   if (midHand && state?.seats) {
-    // Live pot chips live in runtime — refund stack+bet and return side pots.
+    // Mid-hand: chips in pots are already counted in each seat's `contributed`
+    // (engine adds every bet to contributed). Refund stack + contributed so
+    // prior-street pots return to players — never confiscate into bot float.
     for (const seat of state.seats) {
-      const refund = Math.max(0, Number(seat.stack || 0) + Number(seat.bet || 0));
+      const stack = Math.max(0, Number(seat.stack || 0));
+      const bet = Math.max(0, Number(seat.bet || 0));
+      const contributed = Math.max(0, Number(seat.contributed || 0));
+      // Prefer contributed (includes all streets); fall back to bet if older state.
+      const inPot = Math.max(contributed, bet);
+      const refund = stack + inPot;
       if (refund <= 0 || !seat.memberId) continue;
       if (seat.isBot) {
         await creditBotFloat(refund, `bot_table_close:${tableId}`);
       } else {
         await sendChips(seat.memberId, refund, `table_close_cashout:${tableId}`);
       }
-    }
-    const potLeft = (state.pots || []).reduce(
-      (sum, pot) => sum + Math.max(0, Number(pot.amount || 0)),
-      0,
-    );
-    if (potLeft > 0) {
-      await creditBotFloat(potLeft, `table_close_pot:${tableId}`);
     }
     await sql(
       `with old as (
