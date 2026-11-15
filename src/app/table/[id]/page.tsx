@@ -9,7 +9,7 @@ import {
   soundForAction,
   soundsMuted,
 } from "@/lib/sounds";
-import { CARD_BACK_STYLES, FELT_STYLES } from "@/lib/shop";
+import { CARD_BACK_STYLES, FELT_STYLES } from "@/lib/cosmetics";
 
 type TableView = {
   meMemberId: string | null;
