@@ -40,10 +40,11 @@ Required environment variables:
 
 ## Docs / backup
 
-- `docs/FA-POKER-CLUB-RELEASE-PLAN.md` — release plan
-- `docs/FA-POKER-CLUB-RELEASE-PLAN.pdf` — PDF of the plan
-- `docs/fa-poker-club-backup.zip` — plan + key docs snapshot
-- `docs/fa-poker-branch-source.zip` — source tree snapshot
+- `docs/FA-Poker-Club-Handoff-Resume.md` / `.pdf` — status resume (done + next steps) for Devin handoff
+- `docs/FA-Poker-ClubGG-Release-Plan.md` / `.pdf` — longer release plan
+- `docs/fa-poker-club-app-handoff.zip` — full club app source zip (no node_modules)
+- `docs/fa-poker-branch-source.zip` — same source snapshot
+- `docs/fa-poker-club-backup.zip` — plan/docs backup
 
 ## Legacy
 
