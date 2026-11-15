@@ -1061,16 +1061,21 @@ export async function sitAtTable(
   if (!member) throw new Error("Player not found");
   if (num(member.chip_balance) < buyIn) throw new Error("Not enough club chips");
 
-  // Claim the empty seat first so two sitters cannot overwrite each other.
+  // Claim empty seat only while the table is still open (blocks close race).
   const claimed = await sql<SeatRow>(
-    `update table_seats
+    `update table_seats s
      set member_id = $3,
          display_name = $4,
          stack = 0,
          is_bot = false,
          sitting_out = false
-     where table_id = $1 and seat_no = $2 and member_id is null
-     returning *`,
+     from cash_tables t
+     where s.table_id = $1
+       and s.seat_no = $2
+       and s.member_id is null
+       and t.id = s.table_id
+       and t.status = 'open'
+     returning s.*`,
     [tableId, seatNo, memberId, member.display_name],
   );
   if (!claimed.length) throw new Error("Seat taken");
@@ -1105,7 +1110,8 @@ export async function leaveTable(tableId: string, memberId: string) {
   if (runtime.state && !betweenHands(runtime.state.street)) {
     throw new Error("Wait for the hand to finish");
   }
-  const table = await getTable(tableId);
+  // Allow leave on closed tables so a failed/partial close cannot trap stacks.
+  const table = await getTable(tableId, true);
   const handNoAtLeave = runtime.state?.handNo ?? runtime.hand_no;
   // Finish idempotent settlement first so cash-out includes squid/BBJP awards.
   if (
@@ -1242,10 +1248,15 @@ export async function addBot(tableId: string, seatNo?: number) {
       [botId, DEFAULT_CLUB_ID, botName],
     );
     const claimed = await sql(
-      `update table_seats
+      `update table_seats s
        set member_id = $1, display_name = $2, stack = $3, is_bot = true, sitting_out = false
-       where table_id = $4 and seat_no = $5 and member_id is null
-       returning seat_no`,
+       from cash_tables t
+       where s.table_id = $4
+         and s.seat_no = $5
+         and s.member_id is null
+         and t.id = s.table_id
+         and t.status = 'open'
+       returning s.seat_no`,
       [botId, botName, buyIn, tableId, seat.seat_no],
     );
     if (!claimed.length) {

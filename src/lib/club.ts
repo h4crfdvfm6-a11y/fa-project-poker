@@ -413,16 +413,30 @@ export async function createTable(input: {
 
 export async function closeTable(tableId: string) {
   await ensureClubSeeded();
+  await ensureTablePlaySchema();
 
-  // Claim close exactly once so overlapping admin deletes / leave cannot double-pay.
-  const claimed = await sql(
-    `update cash_tables
+  // Claim open→closed, or re-enter when closed still has seated players (retry
+  // after a mid-payout failure). Sit requires status=open so this blocks new buy-ins.
+  const claimed = await sql<{ id: string; format: string }>(
+    `update cash_tables t
      set status = 'closed'
-     where id = $1 and club_id = $2 and status = 'open'
-     returning id`,
+     where t.id = $1
+       and t.club_id = $2
+       and (
+         t.status = 'open'
+         or (
+           t.status = 'closed'
+           and exists (
+             select 1 from table_seats s
+             where s.table_id = t.id and s.member_id is not null
+           )
+         )
+       )
+     returning t.id, t.format`,
     [tableId, DEFAULT_CLUB_ID],
   );
   if (!claimed.length) return;
+  const isTournament = claimed[0]!.format === "tournament";
 
   type RuntimeSeat = {
     memberId?: string;
@@ -439,8 +453,6 @@ export async function closeTable(tableId: string) {
     squidCollected?: number;
     squidPaidOut?: number;
   };
-
-  await ensureTablePlaySchema();
 
   // Freeze runtime in one shot: capture state/squid, clear squid so late banks
   // cannot write after this (banks require status=open, already claimed closed).
@@ -486,139 +498,144 @@ export async function closeTable(tableId: string) {
   const atShowdown =
     Boolean(state?.seats?.length) && street === "showdown";
 
+  /** Clear one seat; restore it if payout fails so close can retry. */
+  async function takeSeatAndPay(
+    memberId: string,
+    amount: number,
+    isBot: boolean,
+  ) {
+    const cleared = await sql<{
+      member_id: string;
+      seat_no: number;
+      display_name: string;
+      stack: string | number;
+      is_bot: boolean;
+    }>(
+      `with old as (
+         select table_id, seat_no, member_id, display_name, stack, is_bot
+         from table_seats
+         where table_id = $1 and member_id = $2
+       ),
+       upd as (
+         update table_seats t
+         set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
+         from old
+         where t.table_id = old.table_id
+           and t.seat_no = old.seat_no
+           and t.member_id = old.member_id
+         returning old.member_id, old.seat_no, old.display_name, old.stack, old.is_bot
+       )
+       select member_id, seat_no, display_name, stack, is_bot from upd`,
+      [tableId, memberId],
+    );
+    if (!cleared.length) return; // already left / paid
+    const seat = cleared[0]!;
+    const pay = Math.max(0, amount);
+    // Tournament chips are not club chips — closing forfeits like leaveTable.
+    if (isTournament || pay <= 0) return;
+    try {
+      if (isBot || seat.is_bot) {
+        await creditBotFloat(pay, `bot_table_close:${tableId}`);
+      } else {
+        await sendChips(memberId, pay, `table_close_cashout:${tableId}`);
+      }
+    } catch (error) {
+      await sql(
+        `update table_seats
+         set member_id = $3, display_name = $4, stack = $5, is_bot = $6, sitting_out = false
+         where table_id = $1 and seat_no = $2 and member_id is null`,
+        [
+          tableId,
+          seat.seat_no,
+          memberId,
+          seat.display_name || "Player",
+          pay,
+          isBot || seat.is_bot,
+        ],
+      );
+      throw error;
+    }
+  }
+
   if (midHand && state?.seats) {
-    // Mid-hand: chips in pots are already counted in each seat's `contributed`
-    // (engine adds every bet to contributed). Refund stack + contributed so
-    // prior-street pots return to players — never confiscate into bot float.
+    // Mid-hand: chips in pots are already in `contributed`. Refund stack +
+    // contributed per seat (never dump pots into bot float).
     for (const seat of state.seats) {
+      if (!seat.memberId) continue;
       const stack = Math.max(0, Number(seat.stack || 0));
       const bet = Math.max(0, Number(seat.bet || 0));
       const contributed = Math.max(0, Number(seat.contributed || 0));
-      // Prefer contributed (includes all streets); fall back to bet if older state.
       const inPot = Math.max(contributed, bet);
-      const refund = stack + inPot;
-      if (refund <= 0 || !seat.memberId) continue;
-      if (seat.isBot) {
-        await creditBotFloat(refund, `bot_table_close:${tableId}`);
-      } else {
-        await sendChips(seat.memberId, refund, `table_close_cashout:${tableId}`);
-      }
+      await takeSeatAndPay(seat.memberId, stack + inPot, Boolean(seat.isBot));
     }
-    await sql(
-      `with old as (
-         select table_id, seat_no, member_id
-         from table_seats
-         where table_id = $1 and member_id is not null
-       )
-       update table_seats t
-       set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
-       from old
-       where t.table_id = old.table_id
-         and t.seat_no = old.seat_no
-         and t.member_id = old.member_id`,
-      [tableId],
-    );
   } else if (atShowdown && state?.seats) {
-    // Pay only players still in table_seats (leave already cashed + cleared).
-    // Use max(seat, state) so BBJP/squid awards on state_json are included,
-    // and showdown sitters (seats only) keep their buy-in.
-    const stateStack = new Map<string, number>();
+    // Pay players still in table_seats (leave already cashed + cleared).
+    // max(seat, state) includes BBJP/squid awards persisted on state_json.
+    const stateStack = new Map<string, { stack: number; isBot: boolean }>();
     for (const seat of state.seats) {
       if (!seat.memberId) continue;
-      stateStack.set(
-        seat.memberId,
-        Math.max(0, Number(seat.stack || 0)),
-      );
+      stateStack.set(seat.memberId, {
+        stack: Math.max(0, Number(seat.stack || 0)),
+        isBot: Boolean(seat.isBot),
+      });
     }
     const seated = await sql<{
       member_id: string;
       stack: string | number;
       is_bot: boolean;
     }>(
-      `with old as (
-         select table_id, seat_no, member_id, stack, is_bot
-         from table_seats
-         where table_id = $1 and member_id is not null
-       ),
-       upd as (
-         update table_seats t
-         set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
-         from old
-         where t.table_id = old.table_id
-           and t.seat_no = old.seat_no
-           and t.member_id = old.member_id
-         returning old.member_id, old.stack, old.is_bot
-       )
-       select member_id, stack, is_bot from upd`,
+      `select member_id, stack, is_bot from table_seats
+       where table_id = $1 and member_id is not null`,
       [tableId],
     );
     for (const seat of seated) {
-      const refund = Math.max(
-        num(seat.stack),
-        stateStack.get(seat.member_id) || 0,
+      const fromState = stateStack.get(seat.member_id);
+      const refund = Math.max(num(seat.stack), fromState?.stack || 0);
+      await takeSeatAndPay(
+        seat.member_id,
+        refund,
+        seat.is_bot || Boolean(fromState?.isBot),
       );
-      if (refund <= 0) continue;
-      if (seat.is_bot) {
-        await creditBotFloat(refund, `bot_table_close:${tableId}`);
-      } else {
-        await sendChips(seat.member_id, refund, `table_close_cashout:${tableId}`);
-      }
     }
   } else {
-    // Waiting: atomically clear seats so leaveTable cannot double-cash.
+    // Waiting / no live hand: cash out whatever seats remain.
     const seated = await sql<{
       member_id: string;
       stack: string | number;
       is_bot: boolean;
     }>(
-      `with old as (
-         select table_id, seat_no, member_id, stack, is_bot
-         from table_seats
-         where table_id = $1 and member_id is not null
-       ),
-       upd as (
-         update table_seats t
-         set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
-         from old
-         where t.table_id = old.table_id
-           and t.seat_no = old.seat_no
-           and t.member_id = old.member_id
-         returning old.member_id, old.stack, old.is_bot
-       )
-       select member_id, stack, is_bot from upd`,
+      `select member_id, stack, is_bot from table_seats
+       where table_id = $1 and member_id is not null`,
       [tableId],
     );
     for (const seat of seated) {
-      const stack = num(seat.stack);
-      if (stack <= 0) continue;
-      if (seat.is_bot) {
-        await creditBotFloat(stack, `bot_table_close:${tableId}`);
-      } else {
-        await sendChips(seat.member_id, stack, `table_close_cashout:${tableId}`);
-      }
+      await takeSeatAndPay(seat.member_id, num(seat.stack), seat.is_bot);
     }
   }
 
   // Return unfinished squid pot from the frozen snapshot (consistent ante flag).
-  try {
-    const squid = JSON.parse(runtime?.squid_json || "{}") as { pot?: number };
-    const jsonPot = Math.max(0, Number(squid.pot || 0));
-    const paidOut = Math.max(0, Number(state?.squidPaidOut || 0));
-    const unbanked = Math.max(0, Number(state?.squidCollected || 0));
-    const anteBanked =
-      Number(runtime?.squid_ante_hand_no || 0) === Number(runtime?.hand_no || 0);
-    const anteStillLoose =
-      unbanked > 0 &&
-      !anteBanked &&
-      (midHand || state?.street === "showdown")
-        ? unbanked
-        : 0;
-    const squidReturn = Math.max(0, jsonPot + anteStillLoose - paidOut);
-    if (squidReturn > 0) {
-      await creditBotFloat(squidReturn, `table_close_squid:${tableId}`);
+  // Skip on tournament tables; ring only.
+  if (!isTournament) {
+    try {
+      const squid = JSON.parse(runtime?.squid_json || "{}") as { pot?: number };
+      const jsonPot = Math.max(0, Number(squid.pot || 0));
+      const paidOut = Math.max(0, Number(state?.squidPaidOut || 0));
+      const unbanked = Math.max(0, Number(state?.squidCollected || 0));
+      const anteBanked =
+        Number(runtime?.squid_ante_hand_no || 0) === Number(runtime?.hand_no || 0);
+      const anteStillLoose =
+        unbanked > 0 &&
+        !anteBanked &&
+        (midHand || state?.street === "showdown")
+          ? unbanked
+          : 0;
+      const squidReturn = Math.max(0, jsonPot + anteStillLoose - paidOut);
+      if (squidReturn > 0) {
+        await creditBotFloat(squidReturn, `table_close_squid:${tableId}`);
+      }
+    } catch {
+      /* ignore bad squid_json */
     }
-  } catch {
-    /* ignore bad squid_json */
   }
 
   if (runtime) {
