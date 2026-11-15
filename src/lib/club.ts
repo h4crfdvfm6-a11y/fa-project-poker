@@ -612,8 +612,8 @@ export async function closeTable(tableId: string) {
     }
   }
 
-  // Sweep any seat still occupied (e.g. sit claimed before close, buy-in after
-  // mid-hand payouts) using live stack only.
+  // Sweep any seat still occupied (missed by the branch above). Live stack at
+  // clear is authoritative — funded sits always claim with stack already set.
   const leftover = await sql<{ member_id: string; is_bot: boolean }>(
     `select member_id, is_bot from table_seats
      where table_id = $1 and member_id is not null`,

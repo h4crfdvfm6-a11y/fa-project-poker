@@ -1061,12 +1061,14 @@ export async function sitAtTable(
   if (!member) throw new Error("Player not found");
   if (num(member.chip_balance) < buyIn) throw new Error("Not enough club chips");
 
-  // Claim empty seat only while the table is still open (blocks close race).
+  // Debit first, then claim the seat already funded. Never leave a stack=0
+  // "pending" seat that close can wipe while buy-in is still in flight.
+  await sendChips(memberId, -buyIn, `table_buyin:${tableId}`);
   const claimed = await sql<SeatRow>(
     `update table_seats s
      set member_id = $3,
          display_name = $4,
-         stack = 0,
+         stack = $5,
          is_bot = false,
          sitting_out = false
      from cash_tables t
@@ -1076,24 +1078,11 @@ export async function sitAtTable(
        and t.id = s.table_id
        and t.status = 'open'
      returning s.*`,
-    [tableId, seatNo, memberId, member.display_name],
+    [tableId, seatNo, memberId, member.display_name, buyIn],
   );
-  if (!claimed.length) throw new Error("Seat taken");
-
-  try {
-    await sendChips(memberId, -buyIn, `table_buyin:${tableId}`);
-    await sql(
-      `update table_seats set stack = $3 where table_id = $1 and seat_no = $2 and member_id = $4`,
-      [tableId, seatNo, buyIn, memberId],
-    );
-  } catch (error) {
-    await sql(
-      `update table_seats
-       set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
-       where table_id = $1 and seat_no = $2 and member_id = $3`,
-      [tableId, seatNo, memberId],
-    );
-    throw error;
+  if (!claimed.length) {
+    await sendChips(memberId, buyIn, `table_buyin_refund:${tableId}`);
+    throw new Error("Seat taken");
   }
 
   return getTableView(tableId, memberId);
