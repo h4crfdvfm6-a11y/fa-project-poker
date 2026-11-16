@@ -1,5 +1,5 @@
 /*
- * Shark Club live table — layout v2 (oval table, evenly spaced seats, nothing overlaps).
+ * Shark Club live table — original table photo + background, evenly spaced seats, nothing overlaps.
  * All classes are prefixed `cs-`. Sizes inside the table use container units
  * (cqw / cqh) so the same layout scales from small phones to desktop.
  */
@@ -15,10 +15,11 @@
   overflow: hidden;
   color: #fff;
   font-family: var(--font-body), Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* original Shark Club table photo (portrait) */
   background:
-    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.45)),
-    var(--cs-bg-landscape) center / cover no-repeat,
-    #050608;
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)),
+    url("https://cold-wildflower-f465.cardsharksclublondon.workers.dev/casino-table.jpg") center top / cover no-repeat,
+    #000;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -79,46 +80,52 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: calc(max(8px, env(safe-area-inset-top)) + 50px);
-  bottom: calc(max(8px, env(safe-area-inset-bottom)) + 118px);
-  width: min(100vw, 620px);
+  top: 54px;
+  width: min(94vw, 430px);
+  height: calc(100dvh - 226px);
+  min-height: 500px;
+  max-height: 640px;
   container-type: size;
   container-name: table;
   z-index: 10;
 }
 
-/* oval rail + felt (stadium shape) */
-.cs-rail {
-  position: absolute;
-  left: 9%;
-  right: 9%;
-  top: 7%;
-  bottom: 9%;
-  border-radius: 999px;
-  background:
-    radial-gradient(120% 80% at 50% 20%, rgba(255, 255, 255, 0.18), transparent 60%),
-    linear-gradient(160deg, #6b3d1f, #3a1d0c 55%, #5a3218);
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.65),
-    inset 0 2px 3px rgba(255, 220, 170, 0.35),
-    inset 0 -4px 8px rgba(0, 0, 0, 0.55);
-}
-.cs-felt {
-  position: absolute;
-  inset: max(10px, 3.6cqmin);
-  border-radius: 999px;
-  background:
-    radial-gradient(70% 55% at 50% 42%, #1f7a3a 0%, #13582a 60%, #0c3f1d 100%);
-  box-shadow:
-    inset 0 0 0 2px rgba(0, 0, 0, 0.35),
-    inset 0 10px 30px rgba(0, 0, 0, 0.45);
-}
-.cs-felt::after {
+/* Shark Club logo + name printed on the felt (sits under everything else) */
+.cs-table::before {
   content: "";
   position: absolute;
-  inset: 7%;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  left: 50%;
+  top: 47%;
+  width: min(34cqw, 30cqh, 220px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--cs-card-logo) center / cover no-repeat;
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  z-index: 1;
+  pointer-events: none;
+}
+.cs-table::after {
+  content: "SHARK CLUB";
+  position: absolute;
+  left: 50%;
+  top: 73%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: var(--font-logo), "Cinzel", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(14px, 6cqw, 40px);
+  letter-spacing: 0.12em;
+  color: rgba(246, 199, 74, 0.38);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* the table comes from the background photo; the drawn rail is switched off */
+.cs-rail {
+  display: none;
 }
 
 /* ---------- centre column (pot / board / chips / info) ---------- */
@@ -175,21 +182,11 @@
 }
 .cs-vstack i {
   position: absolute;
-  left: 0;
-  width: 100%;
-  height: 22%;
-  border-radius: 50%;
-  background:
-    repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.85) 0 12deg, transparent 12deg 45deg),
-    var(--c, #7e44ff);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25), 0 1px 0 rgba(0, 0, 0, 0.6);
+  left: -16%;
+  width: 132%;
+  aspect-ratio: 32 / 17;
+  background: var(--chip) center / 100% 100% no-repeat;
 }
-.cs-vstack:nth-child(1) { --c: #7e44ff; }
-.cs-vstack:nth-child(2) { --c: #23262d; }
-.cs-vstack:nth-child(3) { --c: #16a34a; }
-.cs-vstack:nth-child(4) { --c: #2563eb; }
-.cs-vstack:nth-child(5) { --c: #dc2626; }
-.cs-vstack:nth-child(6) { --c: #f59e0b; }
 .cs-chip-count {
   padding: 2px 10px;
   border-radius: 10px;
@@ -693,14 +690,15 @@ button.cs-empty-seat:not(:disabled) {
 
 /* ---------- wide table box (landscape / desktop): rotate the oval ---------- */
 @container table (min-aspect-ratio: 1 / 1) {
-  .cs-rail {
-    left: 7%;
-    right: 7%;
-    top: 9%;
-    bottom: 11%;
-  }
   .cs-center {
     width: 46%;
+  }
+  .cs-table::before {
+    opacity: 0.16;
+  }
+  .cs-table::after {
+    top: 80%;
+    font-size: clamp(12px, 3.6cqw, 34px);
   }
   .cs-card {
     width: min(6.6cqw, 7.4cqh, 62px);
@@ -725,41 +723,91 @@ button.cs-empty-seat:not(:disabled) {
   }
 }
 
-/* landscape phones: controls move to a side panel so the table keeps its height */
-@media (orientation: landscape) and (max-height: 540px) {
-  .cs-table {
-    left: 0;
-    transform: none;
-    width: calc(100vw - 300px);
-    bottom: max(6px, env(safe-area-inset-bottom));
-    top: calc(max(6px, env(safe-area-inset-top)) + 46px);
+/* landscape phones: original landscape photo and table position, compact controls */
+@media (orientation: landscape) and (max-width: 1199px) {
+  .cs-room {
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.08)),
+      var(--cs-bg-landscape) center / 100% 100% no-repeat,
+      #000;
   }
-  .cs-controls,
-  .cs-ofc {
-    left: auto;
-    right: max(8px, env(safe-area-inset-right));
-    transform: none;
-    width: 284px;
+  .cs-hud {
+    top: 5px;
+    height: 34px;
+  }
+  .cs-hud-btn {
+    height: 32px;
+    min-width: 32px;
+    font-size: 13px;
+  }
+  .cs-corner-info {
+    top: 43px;
+    font-size: 9px;
+  }
+  .cs-table {
+    top: 30dvh;
+    width: 78vw;
+    max-width: 670px;
+    height: auto;
+    bottom: calc(max(4px, env(safe-area-inset-bottom)) + 46px);
+    min-height: 150px;
+    max-height: none;
   }
   .cs-controls {
-    grid-template-columns: 1fr 46px;
+    width: min(94vw, 800px);
+    bottom: max(3px, env(safe-area-inset-bottom));
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 38px;
+    gap: 5px;
   }
-  .cs-ofc {
-    bottom: auto;
-    top: 52px;
+  .cs-vslider {
+    display: none;
+  }
+  .cs-presets {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cs-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
   .cs-preset,
   .cs-amount {
     height: 38px;
+    font-size: 9px;
   }
-  .cs-presets {
-    grid-template-columns: repeat(2, 1fr);
+  .cs-preset small {
+    font-size: 9px;
   }
-  .cs-action {
-    height: 44px;
+  .cs-amount span {
     font-size: 12px;
   }
-  .cs-actions {
-    grid-template-columns: repeat(2, 1fr);
+  .cs-action {
+    height: 38px;
+    font-size: 10px;
+  }
+  .cs-ofc {
+    bottom: 50px;
+  }
+}
+
+/* desktop: original landscape photo and table position */
+@media (min-width: 1200px) and (min-height: 700px) {
+  .cs-room {
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.1)),
+      var(--cs-bg-landscape) center / cover no-repeat,
+      #000;
+  }
+  .cs-table {
+    top: 36vh;
+    width: min(77vw, 1080px);
+    height: min(46vh, 480px);
+    min-height: 0;
+    max-height: none;
+  }
+  .cs-controls {
+    width: min(80vw, 1080px);
+    bottom: 12px;
   }
 }

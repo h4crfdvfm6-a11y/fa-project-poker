@@ -7,9 +7,19 @@
 export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" };
 
 const CX = 50;
-const CY = 48;
-const RX = 40;
-const RY = 40;
+const CY = 46;
+const RX = 39;
+const RY = 38;
+
+/** Original 6-max seat spots, lined up with the table in the photo. */
+const SIX_MAX: Array<[number, number]> = [
+  [50, 86],
+  [11, 70],
+  [11, 27],
+  [50, 11],
+  [89, 27],
+  [89, 70],
+];
 
 /**
  * Point for seat `slot` (0 = bottom centre) at a table with `count` seats.
@@ -18,6 +28,10 @@ const RY = 40;
  */
 export function seatPoint(slot: number, count: number): SeatPoint {
   if (slot === 0) return { x: 50, y: 88, side: "top" };
+  if (count === 6) {
+    const [x, y] = SIX_MAX[slot] ?? SIX_MAX[1]!;
+    return { x, y, side: x < 42 ? "left" : x > 58 ? "right" : "top" };
+  }
   let angle: number;
   if (count <= 2) {
     angle = 270;
