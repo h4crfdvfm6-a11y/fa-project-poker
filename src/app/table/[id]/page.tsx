@@ -17,6 +17,7 @@ import {
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
 import "./table-skin.css";
+import { demoView, potStacks, seatPoint } from "./table-layout";
 
 type TableView = {
   meMemberId: string | null;
@@ -132,8 +133,8 @@ type TableView = {
 };
 
 /**
- * Image assets for the Shark Club table skin. They are served from the
- * prototype worker until they are copied into /public/table — then set
+ * Image assets for the table. The casino background still comes from the
+ * prototype worker until it is copied into /public/table — then set
  * NEXT_PUBLIC_TABLE_ASSET_BASE=/table (or change the default below).
  */
 const TABLE_ASSET_BASE = (
@@ -144,52 +145,9 @@ const TABLE_ASSET_BASE = (
 const asset = (name: string) => `url("${TABLE_ASSET_BASE}/${name}")`;
 
 const SKIN_VARS = {
-  "--cs-bg-portrait": asset("casino-table.jpg"),
   "--cs-bg-landscape": asset("landscape-casino.jpg"),
-  "--cs-card-back": asset("card-back.jpg"),
-  "--cs-chip-red": asset("chip-red.png"),
+  "--cs-card-logo": 'url("/brand/logo.jpg")',
 } as CSSProperties;
-
-const CHIP_COLORS = ["purple", "black", "green", "blue", "red", "orange"] as const;
-
-/** Seat centres (% of the table box) for a 6-max table, clockwise from the hero at the bottom. */
-const SIX_MAX_SLOTS: Array<[number, number]> = [
-  [50, 86],
-  [11, 70],
-  [11, 27],
-  [50, 11],
-  [89, 27],
-  [89, 70],
-];
-
-/** Where seat `slot` of `count` sits (slot 0 = bottom centre / you). */
-function slotPosition(slot: number, count: number): [number, number] {
-  if (count === 6) return SIX_MAX_SLOTS[slot] ?? SIX_MAX_SLOTS[0]!;
-  const angle = ((90 + (360 / count) * slot) * Math.PI) / 180;
-  return [50 + 40 * Math.cos(angle), 46 + 38 * Math.sin(angle)];
-}
-
-/** Bet chips sit part-way between the player and the middle of the felt. */
-function betPosition([x, y]: [number, number]): [number, number] {
-  return [x + (50 - x) * 0.42, y + (48 - y) * 0.42];
-}
-
-/** Turn a pot into up to 5 coloured chip stacks (≤8 chips each). */
-function potStacks(pot: number, bb: number) {
-  if (!pot || !bb) return [] as Array<{ color: string; count: number }>;
-  const units = [100, 25, 5, 1, 0.5, 0.25].map((m) => m * bb);
-  let left = pot;
-  const stacks: Array<{ color: string; count: number }> = [];
-  units.forEach((u, i) => {
-    const n = Math.floor(left / u);
-    if (n > 0 && stacks.length < 5) {
-      stacks.push({ color: CHIP_COLORS[i]!, count: Math.min(8, n) });
-      left -= n * u;
-    }
-  });
-  if (!stacks.length) stacks.push({ color: "orange", count: 1 });
-  return stacks;
-}
 
 const SUITS: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
@@ -203,7 +161,7 @@ function PlayingCard({
   cardBack?: string;
 }) {
   if (card === "xx") {
-    // The default back uses the Shark Club card art; bought backs keep their cosmetic colour.
+    // Default back = Shark Club logo; bought card backs keep their cosmetic colour.
     const custom = cardBack !== "back_navy" ? CARD_BACK_STYLES[cardBack] : undefined;
     return <div className="cs-card back" style={custom ? { background: custom } : undefined} />;
   }
@@ -228,6 +186,7 @@ function avatarFor(name: string, isBot: boolean) {
 export default function TablePage() {
   const params = useParams<{ id: string }>();
   const tableId = params.id;
+  const isDemo = tableId === "demo";
   const [view, setView] = useState<TableView | null>(null);
   const [error, setError] = useState("");
   const [buyIn, setBuyIn] = useState("");
@@ -254,6 +213,12 @@ export default function TablePage() {
   const lastWinHandNo = useRef<number | null>(null);
 
   const load = useCallback(async () => {
+    if (isDemo) {
+      const n = Number(new URLSearchParams(window.location.search).get("players")) || 6;
+      setView(demoView(n) as unknown as TableView);
+      setRaiseTo((prev) => prev || "100");
+      return;
+    }
     const res = await fetch(`/api/table/${tableId}`, { cache: "no-store" });
     const json = await res.json();
     if (!res.ok) {
@@ -271,11 +236,12 @@ export default function TablePage() {
         return prev;
       });
     }
-  }, [tableId, buyIn]);
+  }, [tableId, buyIn, isDemo]);
 
   useEffect(() => {
     setMuted(soundsMuted());
     void load();
+    if (isDemo) return;
     const t = setInterval(() => void load(), 1200);
     const r = setInterval(() => {
       void fetch(`/api/table/${tableId}/react`)
@@ -290,7 +256,7 @@ export default function TablePage() {
       clearInterval(t);
       clearInterval(r);
     };
-  }, [load, tableId]);
+  }, [load, tableId, isDemo]);
 
   useEffect(() => {
     if (!view?.handStrength?.premium) return;
@@ -321,6 +287,10 @@ export default function TablePage() {
   const canSit = !seated && betweenHands;
 
   async function sit(seat: number) {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
     setBusy(true);
     setError("");
     const res = await fetch(`/api/table/${tableId}/sit`, {
@@ -338,6 +308,10 @@ export default function TablePage() {
   }
 
   async function leave() {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
     setBusy(true);
     setError("");
     const res = await fetch(`/api/table/${tableId}/leave`, { method: "POST" });
@@ -351,6 +325,10 @@ export default function TablePage() {
   }
 
   async function act(type: string, amount?: number) {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
     setBusy(true);
     setError("");
     playSound(soundForAction(type));
@@ -455,6 +433,10 @@ export default function TablePage() {
   }
 
   async function react(emoji: string) {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
     playSound("react");
     const res = await fetch(`/api/table/${tableId}/react`, {
       method: "POST",
@@ -488,10 +470,9 @@ export default function TablePage() {
     view.tournament.winnerMemberId === view.meMemberId;
 
   const seatCount = Math.max(2, view.seats.length);
+  const dense = seatCount >= 7;
   const baseSeat = view.meSeat ?? 0;
   const slotOf = (seatNo: number) => (seatNo - baseSeat + seatCount) % seatCount;
-  const posOf = (seatNo: number) => slotPosition(slotOf(seatNo), seatCount);
-  const pct = ([x, y]: [number, number]) => ({ left: `${x}%`, top: `${y}%` });
 
   const me = handSeats.find((s) => s.seat === view.meSeat);
   const meSeatInfo = view.seats.find((s) => s.seat === view.meSeat);
@@ -500,6 +481,8 @@ export default function TablePage() {
   const myTurn = seated && hand?.toAct === view.meSeat && view.actions.length > 0;
   const occupied = view.seats.filter((s) => !s.empty).length;
   const winners = hand?.result?.winners ?? [];
+  const winnerOf = (seatNo: number) => winners.find((w) => w.seat === seatNo);
+  const reactionOf = (seatNo: number) => reactions.find((r) => r.seat === seatNo);
 
   const foldAction = view.actions.find((a) => a.type === "fold");
   const passiveAction =
@@ -512,11 +495,12 @@ export default function TablePage() {
     : 0;
   const raiseStep = Math.max(1, Math.floor(view.table.bb / 2));
   const toCall = Math.max(0, (hand?.currentBet ?? 0) - (me?.bet ?? 0));
-  const potPreset = (frac: number) => {
-    if (!sizing) return;
+  const presetValue = (frac: number) => {
+    if (!sizing) return 0;
     const target = Math.round((hand?.currentBet ?? 0) + frac * (totalPot + toCall));
-    setRaiseTo(String(Math.min(sizing.max, Math.max(sizing.min, target))));
+    return Math.min(sizing.max, Math.max(sizing.min, target));
   };
+  const canSize = Boolean(sizing && myTurn && !busy);
   const nudge = (dir: 1 | -1) => {
     if (!sizing) return;
     setRaiseTo(
@@ -529,9 +513,11 @@ export default function TablePage() {
     view.cosmetics?.avatar !== "avatar_default"
       ? AVATAR_GLYPH[view.cosmetics!.avatar]
       : "😎";
-  const heroPos: [number, number] = [50, 80];
+  void heroAvatar;
   const toActName =
     hand?.toAct != null ? view.seats.find((s) => s.seat === hand.toAct)?.name : null;
+  const inHand = Boolean(hand && hand.street !== "waiting" && hand.street !== "showdown");
+  const fmt = (n: number) => n.toLocaleString();
 
   return (
     <main className="cs-room" style={SKIN_VARS}>
@@ -540,23 +526,23 @@ export default function TablePage() {
         <div className="cs-hud-group">
           <button
             type="button"
-            className="cs-hud-circle"
+            className="cs-hud-btn"
             aria-label="Menu"
             onClick={() => setMenuOpen(true)}
           >
             ☰
           </button>
-          <button type="button" className="cs-hud-wide" onClick={() => setMenuOpen(true)}>
+          <button type="button" className="cs-hud-btn" onClick={() => setMenuOpen(true)}>
             👥 {occupied} / {view.seats.length}
           </button>
         </div>
         <div className="cs-hud-group">
-          <Link href="/lobby" className="cs-hud-circle grid place-items-center" aria-label="Lobby">
+          <Link href="/lobby" className="cs-hud-btn" aria-label="Lobby">
             ⌂
           </Link>
           <button
             type="button"
-            className="cs-hud-circle"
+            className="cs-hud-btn"
             aria-label={muted ? "Unmute" : "Mute"}
             onClick={() => {
               const next = !muted;
@@ -569,21 +555,23 @@ export default function TablePage() {
         </div>
       </div>
 
-      <div className="cs-break-info">
-        {isTournament ? (
-          <>
-            Level <b>{view.tournament?.blindLevel ?? 1}</b>
-            <br />
-            Prize {view.tournament?.prizePool?.toLocaleString() ?? 0}
-          </>
-        ) : view.table.bbjpEnabled ? (
-          <>
-            BBJP
-            <br />
-            <b>{view.bbjp.balance.toLocaleString()}</b>
-          </>
-        ) : null}
-      </div>
+      {isTournament || view.table.bbjpEnabled ? (
+        <div className="cs-corner-info">
+          {isTournament ? (
+            <>
+              Level <b>{view.tournament?.blindLevel ?? 1}</b>
+              <br />
+              Prize {fmt(view.tournament?.prizePool ?? 0)}
+            </>
+          ) : (
+            <>
+              BBJP
+              <br />
+              <b>{fmt(view.bbjp.balance)}</b>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {error ? (
         <button type="button" className="cs-toast error" onClick={() => setError("")}>
@@ -592,81 +580,91 @@ export default function TablePage() {
       ) : tournamentDone ? (
         <div className="cs-toast">
           {iWon ? "🏆 You won the tournament!" : "Tournament finished"} · Prize{" "}
-          {view.tournament?.prizePool?.toLocaleString() ?? 0}
+          {fmt(view.tournament?.prizePool ?? 0)}
         </div>
       ) : null}
 
       {/* ---------- table ---------- */}
       <div className="cs-table">
-        <div className="cs-pot-zone">
+        <div className="cs-rail">
+          <div className="cs-felt" />
+        </div>
+
+        {/* centre column: pot, board, chips, info — stacked so nothing overlaps */}
+        <div className="cs-center">
           <div className="cs-pot-box">
-            Total Pot <b>{totalPot.toLocaleString()}</b>
+            TOTAL POT <b>{fmt(totalPot)}</b>
+          </div>
+          <div className="cs-board">
+            {(hand?.board ?? []).map((c, i) => (
+              <PlayingCard key={`${c}-${i}`} card={c} />
+            ))}
+          </div>
+          {hand?.pot ? (
+            <>
+              <div className="cs-chips">
+                {potStacks(hand.pot, view.table.bb).map((st, i) => (
+                  <div
+                    key={i}
+                    className="cs-vstack"
+                    style={{ "--chip": asset(`chip-${st.color}.png`) } as CSSProperties}
+                  >
+                    {Array.from({ length: st.count }, (_, k) => (
+                      <i key={k} style={{ bottom: `${k * 9}%` }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="cs-chip-count">{fmt(hand.pot)}</div>
+            </>
+          ) : null}
+          <div className="cs-info">
+            Blinds{" "}
+            <b>
+              {fmt(view.table.sb)} / {fmt(view.table.bb)}
+            </b>{" "}
+            · {view.table.gameType || "NLH"}
+            {isTournament ? (
+              <>
+                <br />
+                Blinds up every <b>{view.tournament?.blindMinutes ?? "—"}m</b>
+              </>
+            ) : null}
+            {view.squid ? (
+              <>
+                <br />
+                Squid pot <b>{fmt(view.squid.pot)}</b> · first to {view.squid.target}
+              </>
+            ) : null}
+            {view.table.cucuruchoEnabled ? (
+              <>
+                <br />
+                {hand?.cucurucho ? <b>Cucurucho hand</b> : "Cucurucho"} ·{" "}
+                {view.table.cucuruchoAnteBb || 5}BB
+              </>
+            ) : null}
+            {inHand && !myTurn && toActName ? (
+              <>
+                <br />
+                Waiting for {toActName}…
+              </>
+            ) : null}
           </div>
         </div>
 
-        <div className="cs-board">
-          {(hand?.board ?? []).map((c, i) => (
-            <PlayingCard key={`${c}-${i}`} card={c} />
-          ))}
-        </div>
-
-        {hand?.pot ? (
-          <>
-            <div className="cs-chips">
-              {potStacks(hand.pot, view.table.bb).map((st, i) => (
-                <div
-                  key={i}
-                  className="cs-vstack"
-                  style={{ "--chip": asset(`chip-${st.color}.png`) } as CSSProperties}
-                >
-                  {Array.from({ length: st.count }, (_, k) => (
-                    <i key={k} style={{ bottom: k * 4 }} />
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="cs-chip-count">{hand.pot.toLocaleString()}</div>
-          </>
-        ) : null}
-
-        <div className="cs-table-info">
-          {view.table.gameType || "NLH"} · Blinds{" "}
-          <b>
-            {view.table.sb} / {view.table.bb}
-          </b>
-          {isTournament ? (
-            <>
-              <br />
-              Blinds up every {view.tournament?.blindMinutes ?? "—"}m
-            </>
-          ) : null}
-          {view.squid ? (
-            <>
-              <br />
-              Squid pot <b>{view.squid.pot.toLocaleString()}</b> · first to {view.squid.target}
-            </>
-          ) : null}
-          {view.table.cucuruchoEnabled ? (
-            <>
-              <br />
-              {hand?.cucurucho ? <b>Cucurucho hand</b> : "Cucurucho"} ·{" "}
-              {view.table.cucuruchoAnteBb || 5}BB
-            </>
-          ) : null}
-        </div>
-
-        {/* other players (and empty seats) */}
+        {/* other players and empty seats, spread evenly around the oval */}
         {view.seats.map((seat) => {
           if (seated && seat.seat === view.meSeat) return null;
-          const pos = posOf(seat.seat);
+          const p = seatPoint(slotOf(seat.seat), seatCount);
+          const style = { left: `${p.x}%`, top: `${p.y}%` };
           const live = handSeats.find((s) => s.seat === seat.seat);
-          const active = hand?.toAct === seat.seat;
-          const right = pos[0] > 55;
+          const win = winnerOf(seat.seat);
+          const rx = reactionOf(seat.seat);
 
           if (seat.empty) {
             const canTake = !busy && !isTournament && canSit;
             return (
-              <div key={seat.seat} className="cs-player" style={pct(pos)}>
+              <div key={seat.seat} className={`cs-seat ${dense ? "dense" : ""}`} style={style}>
                 <button
                   type="button"
                   className="cs-empty-seat"
@@ -682,60 +680,51 @@ export default function TablePage() {
           return (
             <div
               key={seat.seat}
-              className={`cs-player ${active ? "active" : ""} ${live?.folded ? "folded" : ""} ${right ? "right" : ""}`}
-              style={pct(pos)}
+              className={`cs-seat ${p.side} ${dense ? "dense" : ""} ${
+                hand?.toAct === seat.seat ? "active" : ""
+              } ${live?.folded ? "folded" : ""}`}
+              style={style}
             >
-              <div className="cs-avatar-wrap">
-                <div className="cs-avatar">{avatarFor(seat.name, seat.isBot)}</div>
-                {live?.hole?.length && !live.folded ? (
-                  <div className="cs-hole">
-                    {live.hole.map((c, i) => (
-                      <PlayingCard key={i} card={c} cardBack={view.cosmetics?.cardBack} />
-                    ))}
+              <div className="cs-avatar">
+                {avatarFor(seat.name, seat.isBot)}
+                {hand && hand.button === seat.seat ? <div className="cs-dealer">D</div> : null}
+                {win ? (
+                  <div className="cs-winner">
+                    WIN +{fmt(win.amount)}
+                    {win.hand ? <small>{win.hand}</small> : null}
                   </div>
                 ) : null}
-                {hand && hand.button === seat.seat ? <div className="cs-dealer">D</div> : null}
+                {rx ? <div className="cs-reaction">{rx.emoji}</div> : null}
               </div>
-              <div className="cs-name">
-                <span>{seat.name}</span>
-              </div>
-              <span className="cs-stack">{(live?.stack ?? seat.stack).toLocaleString()}</span>
-              {live?.allIn ? (
-                <span className="cs-tag">ALL-IN</span>
-              ) : seat.memberId && view.squid?.scores?.[seat.memberId] ? (
-                <span className="cs-tag">
-                  🦑 {view.squid.scores[seat.memberId]}/{view.squid.target}
-                </span>
+              {live?.hole?.length && !live.folded ? (
+                <div className="cs-seat-cards">
+                  {live.hole.map((c, i) => (
+                    <PlayingCard key={i} card={c} cardBack={view.cosmetics?.cardBack} />
+                  ))}
+                </div>
               ) : null}
+              <div className="cs-plate">
+                <div className="n">{seat.name}</div>
+                <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
+                {live?.allIn ? (
+                  <div className="bt allin">ALL-IN</div>
+                ) : live && live.bet > 0 ? (
+                  <div className="bt">BET {fmt(live.bet)}</div>
+                ) : seat.memberId && view.squid?.scores?.[seat.memberId] ? (
+                  <div className="bt">
+                    🦑 {view.squid.scores[seat.memberId]}/{view.squid.target}
+                  </div>
+                ) : null}
+              </div>
             </div>
           );
         })}
 
-        {/* bet markers */}
-        {handSeats
-          .filter((s) => s.bet > 0)
-          .map((s) => {
-            const at =
-              seated && s.seat === view.meSeat
-                ? betPosition(heroPos)
-                : betPosition(posOf(s.seat));
-            return (
-              <div key={`bet-${s.seat}`} className="cs-bet" style={pct(at)}>
-                <div className="cs-mini-stack">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </div>
-                <span>{s.bet.toLocaleString()}</span>
-              </div>
-            );
-          })}
-
         {/* you */}
         {seated ? (
-          <div className={`cs-hero ${me?.folded ? "folded" : ""}`}>
-            <div className="cs-hero-avatar">{heroAvatar}</div>
+          <div
+            className={`cs-hero ${me?.folded ? "folded" : ""} ${myTurn ? "active" : ""}`}
+          >
             {me?.hole?.length ? (
               <div className="cs-hero-cards">
                 {me.hole.map((c, i) => (
@@ -748,48 +737,32 @@ export default function TablePage() {
                 ))}
               </div>
             ) : null}
-            <div className={`cs-hero-label ${myTurn ? "active" : ""}`}>
-              You
-              {hand && hand.button === view.meSeat ? " · D" : ""}
-              {me?.folded ? " · Folded" : me?.allIn ? " · All-in" : ""}
-            </div>
-            <div className="cs-hero-stack">
-              {(me?.stack ?? meSeatInfo?.stack ?? 0).toLocaleString()}
-            </div>
-            {view.handStrength ? (
-              <div className={`cs-hero-hand ${view.handStrength.premium ? "premium" : ""}`}>
-                {view.handStrength.label}
+            <div className="cs-plate" style={{ position: "relative" }}>
+              <div className="n">
+                You{hand && hand.button === view.meSeat ? " · D" : ""}
               </div>
-            ) : null}
+              <div className="st">{fmt(me?.stack ?? meSeatInfo?.stack ?? 0)}</div>
+              {me?.folded ? (
+                <div className="bt allin">FOLDED</div>
+              ) : me?.allIn ? (
+                <div className="bt allin">ALL-IN</div>
+              ) : me && me.bet > 0 ? (
+                <div className="bt">BET {fmt(me.bet)}</div>
+              ) : null}
+              {view.meSeat != null && winnerOf(view.meSeat) ? (
+                <div className="cs-winner">
+                  WIN +{fmt(winnerOf(view.meSeat)!.amount)}
+                  {winnerOf(view.meSeat)!.hand ? (
+                    <small>{winnerOf(view.meSeat)!.hand}</small>
+                  ) : null}
+                </div>
+              ) : null}
+              {view.meSeat != null && reactionOf(view.meSeat) ? (
+                <div className="cs-reaction">{reactionOf(view.meSeat)!.emoji}</div>
+              ) : null}
+            </div>
           </div>
         ) : null}
-
-        {/* winners */}
-        {winners.map((w) => (
-          <div
-            key={`win-${hand?.handNo}-${w.seat}`}
-            className="cs-winner"
-            style={pct(
-              seated && w.seat === view.meSeat
-                ? [50, 62]
-                : betPosition(posOf(w.seat)),
-            )}
-          >
-            WIN +{w.amount.toLocaleString()}
-            {w.hand ? <small>{w.hand}</small> : null}
-          </div>
-        ))}
-
-        {/* reactions */}
-        {reactions.map((rx) => (
-          <div
-            key={rx.id}
-            className="cs-reaction"
-            style={pct(seated && rx.seat === view.meSeat ? heroPos : posOf(rx.seat))}
-          >
-            {rx.emoji}
-          </div>
-        ))}
       </div>
 
       {/* ---------- OFC ---------- */}
@@ -832,138 +805,142 @@ export default function TablePage() {
       ) : null}
 
       {/* ---------- controls ---------- */}
-      <div className="cs-controls">
-        {!seated ? (
-          <>
-            {!isTournament && canSit ? (
-              <div className="cs-buyin">
-                Buy-in
-                <input
-                  type="number"
-                  value={buyIn}
-                  min={view.table.buyinMin}
-                  max={view.table.buyinMax}
-                  onChange={(e) => setBuyIn(e.target.value)}
-                />
-              </div>
-            ) : null}
-            <div className="cs-wait">
-              {isTournament
-                ? tournamentDone
-                  ? "Head back to the lobby for the next event."
-                  : "Watching this tournament table."
-                : canSit
-                  ? `Tap SIT on an empty seat (buy-in ${view.table.buyinMin.toLocaleString()}–${view.table.buyinMax.toLocaleString()})`
-                  : "Hand in progress — you can sit when it ends."}
+      {!seated ? (
+        <div className="cs-controls">
+          {!isTournament && canSit ? (
+            <div className="cs-buyin">
+              Buy-in
+              <input
+                type="number"
+                value={buyIn}
+                min={view.table.buyinMin}
+                max={view.table.buyinMax}
+                onChange={(e) => setBuyIn(e.target.value)}
+              />
             </div>
-          </>
-        ) : hand?.mode === "ofc" ? (
+          ) : null}
+          <div className="cs-wait">
+            {isTournament
+              ? tournamentDone
+                ? "Head back to the lobby for the next event."
+                : "Watching this tournament table."
+              : canSit
+                ? `Tap SIT on an empty seat (buy-in ${fmt(view.table.buyinMin)}–${fmt(view.table.buyinMax)})`
+                : "Hand in progress — you can sit when it ends."}
+          </div>
+        </div>
+      ) : hand?.mode === "ofc" ? (
+        <div className="cs-controls">
           <div className="cs-wait">
             {hand.toAct === view.meSeat
               ? "Set your OFC rows above."
               : "Waiting for the other OFC player to set…"}
           </div>
-        ) : (
-          <>
-            {sizing && myTurn ? (
-              <>
-                <div className="cs-presets">
-                  {[
-                    ["½ Pot", 0.5],
-                    ["¾ Pot", 0.75],
-                    ["Pot", 1],
-                    ["2x Pot", 2],
-                  ].map(([label, frac]) => (
-                    <button
-                      key={label as string}
-                      type="button"
-                      className="cs-preset"
-                      onClick={() => potPreset(frac as number)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="cs-preset allin"
-                    onClick={() => setRaiseTo(String(sizing.max))}
-                  >
-                    All-In
-                  </button>
-                </div>
-                <div className="cs-raise-box">
-                  <button type="button" className="cs-round" onClick={() => nudge(-1)}>
-                    −
-                  </button>
-                  <input
-                    type="range"
-                    min={sizing.min}
-                    max={sizing.max}
-                    step={raiseStep}
-                    value={raiseValue}
-                    onChange={(e) => setRaiseTo(e.target.value)}
-                  />
-                  <button type="button" className="cs-round" onClick={() => nudge(1)}>
-                    +
-                  </button>
-                  <div className="cs-raise-amount">{raiseValue.toLocaleString()}</div>
-                </div>
-              </>
-            ) : (
-              <div className="cs-wait">
-                {myTurn
-                  ? "Your turn"
-                  : hand && hand.street !== "waiting" && hand.street !== "showdown"
-                    ? toActName
-                      ? `Waiting for ${toActName}…`
-                      : "Dealing…"
-                    : isTournament
-                      ? tournamentDone
-                        ? "Head back to the lobby for the next event."
-                        : "Waiting for the next tournament hand…"
-                      : "Waiting for players to start the next hand…"}
-              </div>
-            )}
-            <div className="cs-actions">
+        </div>
+      ) : (
+        <div className={`cs-controls ${canSize ? "" : "idle"}`}>
+          <div className="cs-presets">
+            {(
+              [
+                ["½ Pot", 0.5],
+                ["⅔ Pot", 2 / 3],
+                ["Pot", 1],
+                ["2x Pot", 2],
+              ] as Array<[string, number]>
+            ).map(([label, frac]) => (
               <button
+                key={label}
                 type="button"
-                className="cs-action fold"
-                disabled={busy || !myTurn || !foldAction}
-                onClick={() => act("fold")}
+                className="cs-preset"
+                disabled={!canSize}
+                onClick={() => setRaiseTo(String(presetValue(frac)))}
               >
-                FOLD
+                {label}
+                <small>{sizing ? fmt(presetValue(frac)) : "—"}</small>
               </button>
-              <button
-                type="button"
-                className="cs-action call"
-                disabled={busy || !myTurn || !passiveAction}
-                onClick={() => passiveAction && act(passiveAction.type, passiveAction.amount)}
-              >
-                {passiveAction?.type === "call"
-                  ? `CALL ${(passiveAction.amount ?? toCall).toLocaleString()}`
-                  : "CHECK"}
-              </button>
-              <button
-                type="button"
-                className="cs-action raise"
-                disabled={busy || !myTurn || !sizing}
-                onClick={() => sizing && act(sizing.kind, raiseValue)}
-              >
-                {sizing?.kind === "bet" ? "BET" : "RAISE TO"}
-                {sizing && myTurn ? ` ${raiseValue.toLocaleString()}` : ""}
-              </button>
-              <button
-                type="button"
-                className="cs-action allin"
-                disabled={busy || !myTurn || !allinAction}
-                onClick={() => allinAction && act("allin", allinAction.amount)}
-              >
-                ALL-IN
-              </button>
+            ))}
+            <div className="cs-amount">
+              <span>{sizing ? fmt(raiseValue) : "—"}</span>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+
+          <div className="cs-vslider">
+            <button
+              type="button"
+              className="cs-round"
+              disabled={!canSize}
+              onClick={() => nudge(1)}
+              aria-label="Raise more"
+            >
+              +
+            </button>
+            <div className="cs-vtrack" style={{ "--len": "42px" } as CSSProperties}>
+              <input
+                type="range"
+                aria-label="Raise amount"
+                disabled={!canSize}
+                min={sizing?.min ?? 0}
+                max={sizing?.max ?? 0}
+                step={raiseStep}
+                value={raiseValue}
+                onChange={(e) => setRaiseTo(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="cs-round"
+              disabled={!canSize}
+              onClick={() => nudge(-1)}
+              aria-label="Raise less"
+            >
+              −
+            </button>
+          </div>
+
+          <div className="cs-actions">
+            <button
+              type="button"
+              className="cs-action fold"
+              disabled={busy || !myTurn || !foldAction}
+              onClick={() => act("fold")}
+            >
+              FOLD
+            </button>
+            <button
+              type="button"
+              className="cs-action call"
+              disabled={busy || !myTurn || !passiveAction}
+              onClick={() => passiveAction && act(passiveAction.type, passiveAction.amount)}
+            >
+              {passiveAction?.type === "call"
+                ? `CALL ${fmt(passiveAction.amount ?? toCall)}`
+                : "CHECK"}
+            </button>
+            <button
+              type="button"
+              className="cs-action raise"
+              disabled={busy || !myTurn || !sizing}
+              onClick={() => sizing && act(sizing.kind, raiseValue)}
+            >
+              {sizing?.kind === "bet" ? "BET" : "RAISE TO"}
+              {sizing && myTurn ? (
+                <>
+                  <br />
+                  {fmt(raiseValue)}
+                </>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              className="cs-action allin"
+              disabled={busy || !myTurn || !allinAction}
+              onClick={() => allinAction && act("allin", allinAction.amount)}
+            >
+              ALL-IN
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ---------- menu sheet ---------- */}
       {menuOpen ? (
@@ -975,8 +952,9 @@ export default function TablePage() {
                 <div className="text-base font-extrabold">{view.table.title}</div>
                 <div style={{ color: "#9ea8b8" }}>
                   {view.table.gameType || "NLH"} · {view.table.sb}/{view.table.bb}
+                  {hand ? ` · Hand #${hand.handNo}` : ""}
                   {view.table.bbjpEnabled
-                    ? ` · BBJP ${view.bbjp.balance.toLocaleString()} (min ${view.bbjp.minimumHand || view.bbjp.trigger})`
+                    ? ` · BBJP ${fmt(view.bbjp.balance)} (min ${view.bbjp.minimumHand || view.bbjp.trigger})`
                     : ""}
                 </div>
               </div>
