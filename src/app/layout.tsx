@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description:
     "Free club poker for Android & iPhone — tables, rake, tournaments, BBJP, admin.",
   icons: {
-    icon: "/brand/logo.jpg",
-    apple: "/brand/logo.jpg",
+    icon: "/brand/icon.jpg",
+    apple: "/brand/icon.jpg",
   },
   appleWebApp: {
     capable: true,
