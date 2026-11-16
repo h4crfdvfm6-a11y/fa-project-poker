@@ -13,12 +13,16 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "FA Poker App",
+  title: "Shark Club – Poker Simulator",
   description:
     "Free club poker for Android & iPhone — tables, rake, tournaments, BBJP, admin.",
+  icons: {
+    icon: "/brand/logo.jpg",
+    apple: "/brand/logo.jpg",
+  },
   appleWebApp: {
     capable: true,
-    title: "FA Poker",
+    title: "Shark Club",
     statusBarStyle: "black-translucent",
   },
 };
