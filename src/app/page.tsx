@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { BrandMark } from "./brand-mark";
 
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-10 pt-[max(28px,env(safe-area-inset-top))]">
       <div className="mb-10 flex items-center justify-between">
-        <div className="brand text-2xl text-[var(--gold-strong)]">FA Poker</div>
+        <BrandMark size={44} />
         <span className="chip">Free Club Chips</span>
       </div>
 

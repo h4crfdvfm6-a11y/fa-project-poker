@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandMark } from "../brand-mark";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type LobbyData = {
@@ -79,9 +80,7 @@ export default function LobbyPage() {
     <main className="mx-auto min-h-dvh max-w-lg px-5 pb-12 pt-[max(20px,env(safe-area-inset-top))]">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <Link href="/" className="brand text-xl text-[var(--gold-strong)]">
-            FA Poker
-          </Link>
+          <BrandMark />
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
