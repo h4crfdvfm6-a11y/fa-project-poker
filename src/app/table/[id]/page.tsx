@@ -634,10 +634,12 @@ export default function TablePage() {
           <b>
             {view.table.sb} / {view.table.bb}
           </b>
-          <br />
-          {isTournament
-            ? `Blinds up every ${view.tournament?.blindMinutes ?? "—"}m`
-            : `Rake ${view.table.rakePercent}% · cap ${view.table.rakeCapBb}BB`}
+          {isTournament ? (
+            <>
+              <br />
+              Blinds up every {view.tournament?.blindMinutes ?? "—"}m
+            </>
+          ) : null}
           {view.squid ? (
             <>
               <br />
@@ -649,13 +651,6 @@ export default function TablePage() {
               <br />
               {hand?.cucurucho ? <b>Cucurucho hand</b> : "Cucurucho"} ·{" "}
               {view.table.cucuruchoAnteBb || 5}BB
-            </>
-          ) : null}
-          {hand?.result?.rake ? (
-            <>
-              <br />
-              Rake {hand.result.rake}
-              {hand.result.bbjpFee ? ` · BBJP fee ${hand.result.bbjpFee}` : ""}
             </>
           ) : null}
         </div>
