@@ -13,7 +13,7 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
             background:
-              "radial-gradient(circle at 80% 20%, rgba(231,197,106,.22), transparent 40%), radial-gradient(circle at 20% 80%, rgba(44,21,24,.75), transparent 45%)",
+              "radial-gradient(circle at 80% 20%, rgba(246,199,74,.22), transparent 40%), radial-gradient(circle at 20% 80%, rgba(16,6,159,.55), transparent 45%)",
           }}
         />
         <div className="relative">
@@ -26,15 +26,15 @@ export default function HomePage() {
             Run the club.
           </h1>
           <p className="mb-6 max-w-sm text-sm leading-relaxed text-[var(--muted)]">
-            Open tables with rake, create tournaments, fund BBJP, and add
-            players — built for Android and iPhone.
+            Private club poker for friends — Texas Hold&apos;em and all PLOs,
+            admin tables with rake, club chips only. No bots. No cash-out.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="/lobby" className="btn btn-gold">
               Enter club lobby
             </Link>
             <Link href="/admin" className="btn btn-ghost">
-              Admin panel
+              Club admin
             </Link>
           </div>
         </div>
@@ -42,9 +42,9 @@ export default function HomePage() {
 
       <section className="mt-6 grid gap-3">
         {[
-          ["Tables + rake", "Set blinds, buy-in, fee %, cap, and BBJP flag."],
-          ["Tournaments", "Schedule MTTs with buy-in, fee, and blind levels."],
-          ["Players + chips", "Add members and send club chips like ClubGG."],
+          ["Real players", "Invite friends with your club code — humans only."],
+          ["Tables + rake", "NLH, PLO, PLO5, PLO6, PLO Hi-Lo with club rake."],
+          ["Free club chips", "Social play balances — never redeem for cash."],
         ].map(([title, copy]) => (
           <div key={title} className="panel px-4 py-4">
             <div className="mb-1 font-semibold text-[var(--gold-strong)]">

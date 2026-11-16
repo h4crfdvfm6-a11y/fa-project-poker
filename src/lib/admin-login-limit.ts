@@ -1,33 +1,28 @@
 /**
- * Process-local admin PIN brute-force throttle.
- * Global (not IP-keyed) so clients cannot rotate spoofed forwarding headers.
- * Attempts are serialized so concurrent requests cannot burst past the cap.
+ * Admin PIN brute-force throttle.
+ * Per-client key (trusted proxy IP or rl_cid cookie) + global ceiling so
+ * header/cookie rotation cannot unlimited-guess the PIN.
  */
 
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILURES = 5;
-const LOCKOUT_MS = 15 * 60 * 1000;
-const GLOBAL_KEY = "admin-pin";
+import {
+  throttleIdentityFromRequest,
+  type ThrottleIdentity,
+} from "./client-key";
+import {
+  clearThrottle,
+  recordThrottleFailure,
+  throttleBlocked,
+} from "./security-throttle";
 
-type Bucket = {
-  failures: number;
-  windowStarted: number;
-  lockedUntil: number;
-};
+const CLIENT_PREFIX = "admin-pin:";
+const GLOBAL_KEY = "admin-pin:global";
+const CLIENT_MAX = 5;
+/** Caps mass guessing even when client keys are rotated. */
+const GLOBAL_MAX = 40;
 
-const buckets = new Map<string, Bucket>();
 let gate: Promise<void> = Promise.resolve();
 
-function bucket(now: number): Bucket {
-  let b = buckets.get(GLOBAL_KEY);
-  if (!b || (b.lockedUntil <= now && now - b.windowStarted > WINDOW_MS)) {
-    b = { failures: 0, windowStarted: now, lockedUntil: 0 };
-    buckets.set(GLOBAL_KEY, b);
-  }
-  return b;
-}
-
-/** Run admin-login critical section one at a time in this process. */
+/** Serialize admin-login critical section in this process. */
 export function withAdminLoginGate<T>(fn: () => Promise<T>): Promise<T> {
   const run = gate.then(fn, fn);
   gate = run.then(
@@ -37,36 +32,47 @@ export function withAdminLoginGate<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-export function adminLoginBlocked(): { blocked: true; retryAfterSec: number } | null {
-  const now = Date.now();
-  const b = bucket(now);
-  if (b.lockedUntil > now) {
-    return { blocked: true, retryAfterSec: Math.ceil((b.lockedUntil - now) / 1000) };
-  }
-  return null;
+function identity(request: Request): ThrottleIdentity {
+  return throttleIdentityFromRequest(request);
 }
 
-export function recordAdminLoginFailure(): {
-  locked: boolean;
-  retryAfterSec: number;
-} {
-  const now = Date.now();
-  const b = bucket(now);
-  if (b.lockedUntil > now) {
-    return { locked: true, retryAfterSec: Math.ceil((b.lockedUntil - now) / 1000) };
-  }
-  if (now - b.windowStarted > WINDOW_MS) {
-    b.failures = 0;
-    b.windowStarted = now;
-  }
-  b.failures += 1;
-  if (b.failures >= MAX_FAILURES) {
-    b.lockedUntil = now + LOCKOUT_MS;
-    return { locked: true, retryAfterSec: Math.ceil(LOCKOUT_MS / 1000) };
-  }
-  return { locked: false, retryAfterSec: 0 };
+function clientKey(id: ThrottleIdentity): string {
+  return CLIENT_PREFIX + id.key;
 }
 
-export function clearAdminLoginFailures() {
-  buckets.delete(GLOBAL_KEY);
+export async function adminLoginGateState(request: Request): Promise<{
+  blocked: { retryAfterSec: number } | null;
+  setCookie?: string;
+  identity: ThrottleIdentity;
+}> {
+  const id = identity(request);
+  const global = await throttleBlocked(GLOBAL_KEY);
+  if (global) {
+    return { blocked: global, setCookie: id.setCookie, identity: id };
+  }
+  const client = await throttleBlocked(clientKey(id));
+  if (client) {
+    return { blocked: client, setCookie: id.setCookie, identity: id };
+  }
+  return { blocked: null, setCookie: id.setCookie, identity: id };
+}
+
+export async function recordAdminLoginFailure(
+  request: Request,
+  id?: ThrottleIdentity,
+): Promise<{ locked: boolean; retryAfterSec: number; setCookie?: string }> {
+  const ident = id ?? identity(request);
+  const global = await recordThrottleFailure(GLOBAL_KEY, GLOBAL_MAX);
+  const client = await recordThrottleFailure(clientKey(ident), CLIENT_MAX);
+  const locked = global.locked || client.locked;
+  const retryAfterSec = Math.max(global.retryAfterSec, client.retryAfterSec);
+  return { locked, retryAfterSec, setCookie: ident.setCookie };
+}
+
+export async function clearAdminLoginFailures(
+  request: Request,
+  id?: ThrottleIdentity,
+) {
+  const ident = id ?? identity(request);
+  await clearThrottle(clientKey(ident));
 }

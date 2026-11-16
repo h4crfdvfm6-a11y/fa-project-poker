@@ -8,31 +8,28 @@ type LobbyData = {
   tables: Array<{
     id: string;
     title: string;
+    game_type?: string;
     sb: string | number;
     bb: string | number;
     seats: number;
     rake_percent: string | number;
     rake_cap_bb: string | number;
     bbjp_enabled: boolean;
+    squid_enabled?: boolean;
+    squid_target?: number;
+    cucurucho_enabled?: boolean;
+    cucurucho_ante_bb?: string | number;
     buyin_min: string | number;
     buyin_max: string | number;
   }>;
-  tournaments: Array<{
-    id: string;
-    title: string;
-    buy_in: string | number;
-    fee: string | number;
-    starting_stack: number;
-    max_players: number;
-    entries: string | number;
-    status: string;
-    table_id?: string | null;
-    prize_pool?: string | number;
-    blind_level?: number;
-  }>;
-  bbjp: { balance: string | number; enabled: boolean; trigger_hand: string };
+  bbjp: {
+    balance: string | number;
+    enabled: boolean;
+    trigger_hand: string;
+    cycle_collections?: number;
+    minimum_hand?: string;
+  };
   me: { id: string; display_name: string; chip_balance: string | number } | null;
-  myTournamentIds: string[];
 };
 
 function money(v: string | number) {
@@ -44,36 +41,11 @@ export default function LobbyPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
-  const [busy, setBusy] = useState(false);
-
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
     setData(json);
   }, []);
-
-  async function toggleMtt(tournamentId: string, registered: boolean) {
-    if (!data?.me) {
-      setError("Join the club first");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const res = await fetch(`/api/tournaments/${tournamentId}/register`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action: registered ? "unregister" : "register",
-      }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Tournament action failed");
-      return;
-    }
-    await load();
-  }
 
   useEffect(() => {
     void load();
@@ -112,9 +84,11 @@ export default function LobbyPage() {
           </Link>
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
-        <Link href="/admin" className="btn btn-ghost !py-2 !text-sm">
-          Admin
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin" className="btn btn-ghost !py-2 !text-sm">
+            Admin
+          </Link>
+        </div>
       </div>
 
       <div className="bbjp-panel mb-4 flex items-center justify-between px-4 py-3">
@@ -128,7 +102,12 @@ export default function LobbyPage() {
         </div>
         <div className="bbjp-meta text-right text-xs">
           <div>{data.bbjp.enabled ? "Live" : "Off"}</div>
-          <div>Trigger {data.bbjp.trigger_hand}</div>
+          <div>
+            Min {data.bbjp.minimum_hand || data.bbjp.trigger_hand}
+          </div>
+          <div>
+            Cycle {money(data.bbjp.cycle_collections ?? 0)}
+          </div>
         </div>
       </div>
 
@@ -186,12 +165,18 @@ export default function LobbyPage() {
                   <span className="chip">{t.seats}-max</span>
                 </div>
                 <p className="text-sm text-[var(--muted)]">
-                  Blinds {money(t.sb)}/{money(t.bb)} · Buy-in {money(t.buyin_min)}–
-                  {money(t.buyin_max)}
+                  {t.game_type || "NLH"} · Blinds {money(t.sb)}/{money(t.bb)} ·
+                  Buy-in {money(t.buyin_min)}–{money(t.buyin_max)}
                 </p>
                 <p className="mt-1 text-sm text-[var(--gold)]">
                   Rake {Number(t.rake_percent)}% / cap {Number(t.rake_cap_bb)} BB
                   {t.bbjp_enabled ? " · BBJP on" : ""}
+                  {t.squid_enabled
+                    ? ` · Squid to ${t.squid_target || 3}`
+                    : ""}
+                  {t.cucurucho_enabled
+                    ? ` · Cucurucho ${t.cucurucho_ante_bb || 5}BB`
+                    : ""}
                 </p>
                 <Link
                   href={`/table/${t.id}`}
@@ -205,58 +190,6 @@ export default function LobbyPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="brand mb-3 text-2xl">Tournaments</h2>
-        <div className="grid gap-3">
-          {data.tournaments.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">No scheduled tournaments.</p>
-          ) : (
-            data.tournaments.map((t) => {
-              const registered = (data.myTournamentIds || []).includes(t.id);
-              const running = t.status === "running" && t.table_id;
-              return (
-                <article key={t.id} className="panel p-4">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <h3 className="font-semibold">{t.title}</h3>
-                    <span className="chip">{t.status}</span>
-                  </div>
-                  <p className="text-sm text-[var(--muted)]">
-                    Buy-in {money(t.buy_in)} + {money(t.fee)} · Stack{" "}
-                    {money(t.starting_stack)}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--gold)]">
-                    {Number(t.entries)} / {t.max_players} registered
-                    {registered ? " · You’re in" : ""}
-                    {running && t.prize_pool != null
-                      ? ` · prize ${money(t.prize_pool)}`
-                      : ""}
-                  </p>
-                  {running && registered ? (
-                    <Link
-                      href={`/table/${t.table_id}`}
-                      className="btn btn-gold mt-3 !py-2 !text-sm"
-                    >
-                      Play tournament
-                    </Link>
-                  ) : t.status === "scheduled" ? (
-                    <button
-                      className={`btn mt-3 !py-2 !text-sm ${registered ? "btn-ghost" : "btn-gold"}`}
-                      disabled={busy || !data.me}
-                      onClick={() => toggleMtt(t.id, registered)}
-                    >
-                      {registered ? "Unregister" : "Register"}
-                    </button>
-                  ) : running ? (
-                    <p className="mt-3 text-sm text-[var(--muted)]">
-                      In progress — register next time to play.
-                    </p>
-                  ) : null}
-                </article>
-              );
-            })
-          )}
-        </div>
-      </section>
     </main>
   );
 }

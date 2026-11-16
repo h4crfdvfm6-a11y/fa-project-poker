@@ -8,8 +8,15 @@ type Overview = {
   members: number;
   openTables: number;
   activeTournaments: number;
-  bbjp: { balance: string; enabled: boolean; trigger_hand: string };
+  bbjp: {
+    balance: string;
+    enabled: boolean;
+    trigger_hand: string;
+    cycle_collections?: number;
+    minimum_hand?: string;
+  };
   totalRake: number;
+  botFloat?: number;
 };
 
 type Member = {
@@ -22,33 +29,27 @@ type Member = {
 type Table = {
   id: string;
   title: string;
+  game_type?: string;
   sb: string | number;
   bb: string | number;
   seats: number;
   rake_percent: string | number;
   rake_cap_bb: string | number;
   bbjp_enabled: boolean;
+  squid_enabled?: boolean;
+  squid_target?: number;
+  cucurucho_enabled?: boolean;
+  cucurucho_ante_bb?: string | number;
+  cucurucho_every_hands?: number;
   status: string;
-};
-
-type Tournament = {
-  id: string;
-  title: string;
-  buy_in: string | number;
-  fee: string | number;
-  starting_stack: number;
-  max_players: number;
-  entries: string | number;
-  status: string;
-  table_id?: string | null;
-  prize_pool?: string | number;
-  blind_level?: number;
 };
 
 type Bbjp = {
   balance: string;
   enabled: boolean;
   trigger_hand: string;
+  cycle_collections: number;
+  minimum_hand: string;
   topups: Array<{ id: string; amount: string; created_at: string }>;
 };
 
@@ -59,14 +60,13 @@ function money(v: string | number) {
 export default function AdminPage() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [pin, setPin] = useState("");
-  const [tab, setTab] = useState<"overview" | "players" | "tables" | "mtt" | "bbjp">(
+  const [tab, setTab] = useState<"overview" | "players" | "tables" | "bbjp">(
     "overview",
   );
   const [error, setError] = useState("");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [bbjp, setBbjp] = useState<Bbjp | null>(null);
 
   const [playerName, setPlayerName] = useState("");
@@ -75,7 +75,8 @@ export default function AdminPage() {
   const [sendAmount, setSendAmount] = useState("1000");
 
   const [tableForm, setTableForm] = useState({
-    title: "NLH 25/50",
+    title: "",
+    gameType: "NLH",
     sb: "25",
     bb: "50",
     seats: "6",
@@ -87,16 +88,6 @@ export default function AdminPage() {
     isPrivate: false,
   });
 
-  const [mttForm, setMttForm] = useState({
-    title: "Tuesday League",
-    buyIn: "1000",
-    fee: "100",
-    startingStack: "10000",
-    maxPlayers: "9",
-    blindMinutes: "5",
-  });
-  const [mttBusy, setMttBusy] = useState(false);
-
   const [bbjpAmount, setBbjpAmount] = useState("1000");
 
   const refresh = useCallback(async () => {
@@ -107,15 +98,13 @@ export default function AdminPage() {
     }
     setAuthed(true);
     setOverview(await ov.json());
-    const [m, t, mt, b] = await Promise.all([
+    const [m, t, b] = await Promise.all([
       fetch("/api/admin/members").then((r) => r.json()),
       fetch("/api/admin/tables").then((r) => r.json()),
-      fetch("/api/admin/tournaments").then((r) => r.json()),
       fetch("/api/admin/bbjp").then((r) => r.json()),
     ]);
     setMembers(m.members || []);
     setTables(t.tables || []);
-    setTournaments(mt.tournaments || []);
     setBbjp(b);
     if (!sendMemberId && m.members?.[0]) setSendMemberId(m.members[0].id);
   }, [sendMemberId]);
@@ -192,6 +181,7 @@ export default function AdminPage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         title: tableForm.title,
+        gameType: tableForm.gameType,
         sb: Number(tableForm.sb),
         bb: Number(tableForm.bb),
         seats: Number(tableForm.seats),
@@ -216,44 +206,6 @@ export default function AdminPage() {
     await fetch(`/api/admin/tables?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
-    await refresh();
-  }
-
-  async function createMtt(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    const res = await fetch("/api/admin/tournaments", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        title: mttForm.title,
-        buyIn: Number(mttForm.buyIn),
-        fee: Number(mttForm.fee),
-        startingStack: Number(mttForm.startingStack),
-        maxPlayers: Number(mttForm.maxPlayers),
-        blindMinutes: Number(mttForm.blindMinutes),
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Could not create tournament");
-      return;
-    }
-    await refresh();
-  }
-
-  async function startMtt(id: string) {
-    setMttBusy(true);
-    setError("");
-    const res = await fetch(`/api/admin/tournaments/${id}/start`, {
-      method: "POST",
-    });
-    const json = await res.json();
-    setMttBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Could not start tournament");
-      return;
-    }
     await refresh();
   }
 
@@ -336,7 +288,6 @@ export default function AdminPage() {
             ["overview", "Overview"],
             ["players", "Players"],
             ["tables", "Tables"],
-            ["mtt", "MTTs"],
             ["bbjp", "BBJP"],
           ] as const
         ).map(([key, label]) => (
@@ -357,13 +308,12 @@ export default function AdminPage() {
           {[
             ["Players", overview.members],
             ["Open tables", overview.openTables],
-            ["Tournaments", overview.activeTournaments],
             ["Club rake", money(overview.totalRake)],
             ["BBJP", money(overview.bbjp.balance)],
             ["BBJP status", overview.bbjp.enabled ? "On" : "Off"],
           ].map(([label, value]) => (
             <div key={String(label)} className="panel p-4">
-              <div className="text-xs uppercase tracking-wider text-[var(--muted)]">
+              <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
                 {label}
               </div>
               <div className="brand mt-1 text-2xl text-[var(--gold-strong)]">
@@ -428,7 +378,7 @@ export default function AdminPage() {
               />
             </div>
             <button className="btn btn-gold" type="submit">
-              Send / recall chips
+              Send chips
             </button>
           </form>
 
@@ -454,9 +404,26 @@ export default function AdminPage() {
           <form onSubmit={openTable} className="panel grid gap-3 p-4">
             <h2 className="brand text-xl">Open table</h2>
             <div>
-              <label className="label">Title</label>
+              <label className="label">Game</label>
+              <select
+                className="field"
+                value={tableForm.gameType}
+                onChange={(e) =>
+                  setTableForm((s) => ({ ...s, gameType: e.target.value }))
+                }
+              >
+                <option value="NLH">Texas Hold&apos;em (NLH)</option>
+                <option value="PLO">Pot-Limit Omaha (4)</option>
+                <option value="PLO5">Pot-Limit Omaha 5</option>
+                <option value="PLO6">Pot-Limit Omaha 6</option>
+                <option value="PLO_HILO">PLO Hi-Lo</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Title (optional)</label>
               <input
                 className="field"
+                placeholder="Auto from game + blinds"
                 value={tableForm.title}
                 onChange={(e) =>
                   setTableForm((s) => ({ ...s, title: e.target.value }))
@@ -576,11 +543,18 @@ export default function AdminPage() {
                   <span className="chip">{t.status}</span>
                 </div>
                 <p className="text-sm text-[var(--muted)]">
-                  {money(t.sb)}/{money(t.bb)} · {t.seats}-max
+                  {t.game_type || "NLH"} · {money(t.sb)}/{money(t.bb)} ·{" "}
+                  {t.seats}-max
                 </p>
                 <p className="text-sm text-[var(--gold)]">
                   Rake {Number(t.rake_percent)}% / {Number(t.rake_cap_bb)} BB
                   {t.bbjp_enabled ? " · BBJP" : ""}
+                  {t.squid_enabled
+                    ? ` · Squid ${t.squid_target || 3}`
+                    : ""}
+                  {t.cucurucho_enabled
+                    ? ` · Cucurucho ${t.cucurucho_ante_bb || 5}BB / ${t.cucurucho_every_hands || 1}h`
+                    : ""}
                 </p>
                 {t.status === "open" ? (
                   <button
@@ -589,126 +563,6 @@ export default function AdminPage() {
                   >
                     Close table
                   </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {tab === "mtt" ? (
-        <section className="grid gap-4">
-          <form onSubmit={createMtt} className="panel grid gap-3 p-4">
-            <h2 className="brand text-xl">Create tournament</h2>
-            <div>
-              <label className="label">Title</label>
-              <input
-                className="field"
-                value={mttForm.title}
-                onChange={(e) =>
-                  setMttForm((s) => ({ ...s, title: e.target.value }))
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Buy-in</label>
-                <input
-                  className="field"
-                  type="number"
-                  value={mttForm.buyIn}
-                  onChange={(e) =>
-                    setMttForm((s) => ({ ...s, buyIn: e.target.value }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="label">Fee</label>
-                <input
-                  className="field"
-                  type="number"
-                  value={mttForm.fee}
-                  onChange={(e) =>
-                    setMttForm((s) => ({ ...s, fee: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Starting stack</label>
-                <input
-                  className="field"
-                  type="number"
-                  value={mttForm.startingStack}
-                  onChange={(e) =>
-                    setMttForm((s) => ({
-                      ...s,
-                      startingStack: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="label">Max players</label>
-                <input
-                  className="field"
-                  type="number"
-                  value={mttForm.maxPlayers}
-                  onChange={(e) =>
-                    setMttForm((s) => ({ ...s, maxPlayers: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <label className="label">Blind level (minutes)</label>
-              <input
-                className="field"
-                type="number"
-                value={mttForm.blindMinutes}
-                onChange={(e) =>
-                  setMttForm((s) => ({ ...s, blindMinutes: e.target.value }))
-                }
-              />
-            </div>
-            <button className="btn btn-gold" type="submit">
-              Create tournament
-            </button>
-          </form>
-
-          <div className="grid gap-2">
-            {tournaments.map((t) => (
-              <div key={t.id} className="panel p-4">
-                <div className="mb-1 flex items-center justify-between">
-                  <div className="font-semibold">{t.title}</div>
-                  <span className="chip">{t.status}</span>
-                </div>
-                <p className="text-sm text-[var(--muted)]">
-                  {money(t.buy_in)}+{money(t.fee)} · stack {money(t.starting_stack)}
-                </p>
-                <p className="text-sm text-[var(--gold)]">
-                  {Number(t.entries)} / {t.max_players} entries
-                  {t.status === "running" && t.prize_pool != null
-                    ? ` · prize ${money(t.prize_pool)}`
-                    : ""}
-                </p>
-                {t.status === "scheduled" ? (
-                  <button
-                    className="btn btn-gold mt-3 !py-2 !text-sm"
-                    disabled={mttBusy || Number(t.entries) < 2}
-                    onClick={() => startMtt(t.id)}
-                  >
-                    Start single table
-                  </button>
-                ) : null}
-                {t.status === "running" && t.table_id ? (
-                  <Link
-                    href={`/table/${t.table_id}`}
-                    className="btn btn-ghost mt-3 !py-2 !text-sm"
-                  >
-                    Open table
-                  </Link>
                 ) : null}
               </div>
             ))}
@@ -726,7 +580,12 @@ export default function AdminPage() {
               {money(bbjp.balance)}
             </div>
             <p className="bbjp-meta mt-2 text-sm">
-              {bbjp.enabled ? "Enabled" : "Disabled"} · trigger {bbjp.trigger_hand}
+              {bbjp.enabled ? "Enabled" : "Disabled"} · minimum{" "}
+              {bbjp.minimum_hand || bbjp.trigger_hand}
+            </p>
+            <p className="bbjp-meta mt-1 text-sm">
+              Cycle collections {money(bbjp.cycle_collections ?? 0)} (ladder, not
+              balance)
             </p>
             <div className="mt-4 flex gap-2">
               {bbjp.enabled ? (
@@ -756,7 +615,8 @@ export default function AdminPage() {
           >
             <h2 className="brand text-xl">Top up BBJP</h2>
             <p className="text-sm text-[var(--muted)]">
-              Minimum 100 chips. Top-ups cannot be withdrawn.
+              Minimum 100 chips. Top-ups raise the pool and the collections
+              ladder. After an award the ladder resets toward AAAKK.
             </p>
             <input
               className="field"
@@ -770,18 +630,32 @@ export default function AdminPage() {
           </form>
 
           <div className="panel p-4">
-            <h2 className="brand mb-3 text-xl">Trigger hand</h2>
-            <div className="flex flex-wrap gap-2">
-              {["AAA22", "AAA88", "AAAJJ", "AAAKK"].map((hand) => (
-                <button
-                  key={hand}
-                  className={`btn !py-2 !text-sm ${
-                    bbjp.trigger_hand === hand ? "btn-gold" : "btn-ghost"
+            <h2 className="brand mb-2 text-xl">Collections ladder</h2>
+            <p className="mb-3 text-sm text-[var(--muted)]">
+              Minimum losing hand follows jackpot-cycle collections (£50 bands).
+              Current: {bbjp.minimum_hand || bbjp.trigger_hand}
+            </p>
+            <div className="grid gap-1 text-sm">
+              {[
+                ["0–50", "AAAKK"],
+                ["51–100", "AAAQQ"],
+                ["101–150", "AAAJJ"],
+                ["151–200", "AAA1010"],
+                ["201–250", "AAA99"],
+                ["251–300", "AAA88"],
+                ["…", "down to AAA22"],
+              ].map(([band, hand]) => (
+                <div
+                  key={band}
+                  className={`flex justify-between rounded-lg px-3 py-2 ${
+                    hand === (bbjp.minimum_hand || bbjp.trigger_hand)
+                      ? "bg-[rgba(93,202,134,0.2)]"
+                      : "bg-black/15"
                   }`}
-                  onClick={() => bbjpAction("trigger", { triggerHand: hand })}
                 >
-                  {hand}
-                </button>
+                  <span className="text-[var(--muted)]">{band}</span>
+                  <span className="font-semibold">{hand}</span>
+                </div>
               ))}
             </div>
           </div>
