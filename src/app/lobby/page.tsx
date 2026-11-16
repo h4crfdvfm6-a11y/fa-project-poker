@@ -167,16 +167,19 @@ export default function LobbyPage() {
                   {t.game_type || "NLH"} · Blinds {money(t.sb)}/{money(t.bb)} ·
                   Buy-in {money(t.buyin_min)}–{money(t.buyin_max)}
                 </p>
-                <p className="mt-1 text-sm text-[var(--gold)]">
-                  Rake {Number(t.rake_percent)}% / cap {Number(t.rake_cap_bb)} BB
-                  {t.bbjp_enabled ? " · BBJP on" : ""}
-                  {t.squid_enabled
-                    ? ` · Squid to ${t.squid_target || 3}`
-                    : ""}
-                  {t.cucurucho_enabled
-                    ? ` · Cucurucho ${t.cucurucho_ante_bb || 5}BB`
-                    : ""}
-                </p>
+                {t.bbjp_enabled || t.squid_enabled || t.cucurucho_enabled ? (
+                  <p className="mt-1 text-sm text-[var(--gold)]">
+                    {[
+                      t.bbjp_enabled ? "BBJP on" : "",
+                      t.squid_enabled ? `Squid to ${t.squid_target || 3}` : "",
+                      t.cucurucho_enabled
+                        ? `Cucurucho ${t.cucurucho_ante_bb || 5}BB`
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                ) : null}
                 <Link
                   href={`/table/${t.id}`}
                   className="btn btn-gold mt-3 !py-2 !text-sm"
