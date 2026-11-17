@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * Moving deep-water background (lobby). Plays the moving-water video when it
- * is in public/banners/; otherwise two drifting copies of the home picture's
- * water. Gold sparkles twinkle on top; the middle stays darker for reading.
+ * Lobby background: the same Shark Club picture as the home page (full
+ * quality), darkened so the table list is easy to read. When the moving-water
+ * video (home-water.mp4) is in public/banners/ it plays instead, so the water
+ * moves here too. Gold sparkles twinkle on top.
  */
 import { useState } from "react";
 import "./lobby-water.css";
 
 const PICTURE = "/banners/913264387_1634729197943554_7988411377112276360_n.jpg";
-const VIDEO = "/banners/lobby-water.mp4";
+const VIDEO = "/banners/home-water.mp4";
 
 const SPARKLES = [
   [8, 14, 0],
@@ -28,12 +29,11 @@ export function LobbyWater() {
   const [videoOk, setVideoOk] = useState(true);
   return (
     <div className="lobby-water" aria-hidden>
-      <div className="lw-layer lw-a" style={{ backgroundImage: `url("${PICTURE}")` }} />
-      <div className="lw-layer lw-b" style={{ backgroundImage: `url("${PICTURE}")` }} />
       {videoOk ? (
         <video
-          className="lw-video"
+          className="lw-hero"
           src={VIDEO}
+          poster={PICTURE}
           autoPlay
           loop
           muted
@@ -41,7 +41,9 @@ export function LobbyWater() {
           preload="auto"
           onError={() => setVideoOk(false)}
         />
-      ) : null}
+      ) : (
+        <div className="lw-hero" style={{ backgroundImage: `url("${PICTURE}")` }} />
+      )}
       <div className="lw-shade" />
       {SPARKLES.map(([x, y, d], i) => (
         <i
