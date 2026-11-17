@@ -50,32 +50,185 @@ html:has(.home-screen) body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 16px max(16px, env(safe-area-inset-bottom));
 }
 
-/* Rewards take turns under the shark — no box: soft edges and a lighten blend
-   so each GIF's dark background melts into the water */
-.home-square {
+/* ---------- rewards under the shark ---------- */
+/* The stage fills the water between the shark's tail and the buttons. */
+.rw-stage {
   position: relative;
-  width: max(150px, min(88vw, calc(100dvh - min(109vw, 469px) - 6vh - 70px), 360px));
-  aspect-ratio: 1;
-  -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
-  mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  width: min(100%, 400px);
+  height: max(230px, calc(100dvh - 6vh - min(109vw, 469px) - 62px));
+  container-type: size;
 }
-.home-square img,
-.home-square video {
+
+/* GIF fallback (until the cut-out pictures are uploaded) — blended, no box */
+.rw-fallback {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  left: 50%;
+  top: 50%;
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
+  transform: translate(-50%, -50%);
   object-fit: cover;
   mix-blend-mode: lighten;
+  -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
   opacity: 0;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.5s ease;
 }
-.home-square .on {
+.rw-fallback.on {
   opacity: 1;
+}
+
+/* One reward scene: gold title, the cut-out picture, a short line underneath */
+.rw-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+  pointer-events: none;
+}
+.rw-slide.on {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.rw-title {
+  font-family: var(--font-logo), "Trajan Pro", Georgia, serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  font-size: clamp(20px, 11cqh, 34px);
+  text-align: center;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fff3b4 0%, #f6c74a 45%, #b9861a 72%, #f6d77a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+.rw-slide.on .rw-title {
+  animation: rwTitle 0.8s ease both;
+}
+.rw-sub {
+  margin-top: 2px;
+  font-size: clamp(10px, 4.6cqh, 13px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f4e2b0;
+  text-shadow: 0 1px 4px #000;
+  white-space: nowrap;
+}
+
+.rw-art {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.rw-art img {
+  position: relative;
+  z-index: 2;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.6));
+}
+/* warm light behind each reward so it glows out of the water */
+.rw-glow {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 92%;
+  height: 92%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 205, 90, 0.42), rgba(255, 190, 60, 0.12) 55%, transparent 75%);
+  z-index: 1;
+  animation: rwGlow 2.4s ease-in-out infinite;
+}
+.rw-spark {
+  position: absolute;
+  z-index: 3;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: radial-gradient(closest-side, #fff7d6, rgba(255, 214, 110, 0.9) 35%, transparent 70%);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: rwSpark 2.4s ease-in-out infinite;
+}
+
+/* Bad Beat Jackpot: the chest bobs gently, coins glint */
+.rw-jackpot .rw-art img {
+  height: 92%;
+  animation: rwFloat 3s ease-in-out infinite;
+}
+
+/* High Hand: the wheel spins and lands under a gold pointer */
+.rw-wheel .rw-art img {
+  height: 94%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+.rw-wheel.on .rw-art img {
+  animation: rwSpin 3.6s cubic-bezier(0.12, 0.75, 0.18, 1) both;
+}
+.rw-pointer {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 1%;
+  width: 22px;
+  height: 30px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #fff3b4, #e0a93a 60%, #9c6d16);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* Hand of the Day: the table tilts like you're sitting at it */
+.rw-hand .rw-art {
+  perspective: 700px;
+}
+.rw-hand .rw-art img {
+  width: 100%;
+  transform: rotateX(24deg);
+}
+.rw-hand.on .rw-art img {
+  animation: rwTable 4s ease-out both;
+}
+
+@keyframes rwTitle {
+  from { opacity: 0; transform: translateY(-8px); letter-spacing: 0.2em; }
+}
+@keyframes rwGlow {
+  50% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.92); }
+}
+@keyframes rwSpark {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+@keyframes rwFloat {
+  50% { transform: translateY(-6px); }
+}
+@keyframes rwSpin {
+  from { transform: rotate(-20deg); }
+  to { transform: rotate(1100deg); }
+}
+@keyframes rwTable {
+  from { transform: rotateX(40deg) scale(0.86); }
+  to { transform: rotateX(24deg) scale(1); }
 }
 
 .home-buttons {

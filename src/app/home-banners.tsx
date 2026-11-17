@@ -11,16 +11,39 @@ const HOME_PICTURES = [
   "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
 ];
 
-/** Reward tiles: the MP4 is used if present, otherwise the GIF. */
-const BANNERS = [
+/**
+ * The three rewards under the shark. Each is an animated scene built from a
+ * cut-out picture (no background, so it sits straight on the water). If a
+ * cut-out isn't uploaded yet, that reward falls back to its GIF.
+ */
+type Kind = "jackpot" | "wheel" | "hand";
+const REWARDS: Array<{
+  kind: Kind;
+  title: [string, string];
+  sub: string;
+  art: string;
+  fallback: string[];
+}> = [
   {
-    alt: "Bad Beat Jackpot",
-    files: ["/banners/bad-beat-jackpot.mp4", "/banners/Bad_Beat_Jackpot.gif"],
+    kind: "jackpot",
+    title: ["Bad Beat", "Jackpot"],
+    sub: "Lose with a monster — win the pot",
+    art: "/banners/reward-chest.webp",
+    fallback: ["/banners/bad-beat-jackpot.mp4", "/banners/Bad_Beat_Jackpot.gif"],
   },
-  { alt: "High Hand", files: ["/banners/high-hand.mp4", "/banners/High_Hand.gif"] },
   {
-    alt: "Hand of the Day",
-    files: ["/banners/hand-of-the-day.mp4", "/banners/Hand_of_the_Day.gif"],
+    kind: "wheel",
+    title: ["High", "Hand"],
+    sub: "Spin the wheel for live rewards",
+    art: "/banners/reward-wheel.webp",
+    fallback: ["/banners/high-hand.mp4", "/banners/High_Hand.gif"],
+  },
+  {
+    kind: "hand",
+    title: ["Hand of", "the Day"],
+    sub: "Play the hand of the day to win prizes",
+    art: "/banners/reward-table.webp",
+    fallback: ["/banners/hand-of-the-day.mp4", "/banners/Hand_of_the_Day.gif"],
   },
 ];
 
@@ -41,9 +64,43 @@ async function firstThatExists(files: string[]) {
   return null;
 }
 
-type Slide = { alt: string; src: string };
+type Slide = { kind: Kind; title: [string, string]; sub: string; src: string; scene: boolean };
 
-function RewardSquare({ slides }: { slides: Slide[] }) {
+const SPARKS = [
+  [12, 30, 0],
+  [86, 22, 0.7],
+  [20, 78, 1.3],
+  [80, 70, 0.4],
+  [50, 8, 1.8],
+  [66, 46, 1.1],
+  [32, 52, 2.2],
+];
+
+function RewardScene({ slide, active }: { slide: Slide; active: boolean }) {
+  return (
+    <div className={`rw-slide rw-${slide.kind} ${active ? "on" : ""}`} aria-hidden={!active}>
+      <div className="rw-title">
+        <span>{slide.title[0]}</span> <span>{slide.title[1]}</span>
+      </div>
+      <div className="rw-art">
+        <div className="rw-glow" />
+        {slide.kind === "wheel" ? <div className="rw-pointer" /> : null}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={slide.src} alt={`${slide.title[0]} ${slide.title[1]}`} />
+        {SPARKS.map(([x, y, d], i) => (
+          <i
+            key={i}
+            className="rw-spark"
+            style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${d}s` }}
+          />
+        ))}
+      </div>
+      <div className="rw-sub">{slide.sub}</div>
+    </div>
+  );
+}
+
+function RewardStage({ slides }: { slides: Slide[] }) {
   const [active, setActive] = useState(0);
   const videos = useRef<Array<HTMLVideoElement | null>>([]);
 
@@ -54,7 +111,7 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
     return () => clearInterval(t);
   }, [slides.length]);
 
-  // Videos restart from the beginning each time they come on screen.
+  // Fallback videos restart from the beginning each time they come on screen.
   useEffect(() => {
     const v = videos.current[active];
     if (v) {
@@ -64,31 +121,31 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
   }, [active]);
 
   return (
-    <div className="home-square" aria-label="Club rewards">
+    <div className="rw-stage" aria-label="Club rewards">
       {slides.map((s, i) =>
-        s.src.endsWith(".mp4") ? (
+        s.scene ? (
+          <RewardScene key={s.kind} slide={s} active={i === active} />
+        ) : s.src.endsWith(".mp4") ? (
           <video
-            key={s.src}
+            key={s.kind}
             ref={(el) => {
               videos.current[i] = el;
             }}
             src={s.src}
-            aria-label={s.alt}
             autoPlay
             loop
             muted
             playsInline
             preload="auto"
-            className={i === active ? "on" : ""}
+            className={`rw-fallback ${i === active ? "on" : ""}`}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={s.src}
+            key={s.kind}
             src={s.src}
-            alt={s.alt}
-            loading="eager"
-            className={i === active ? "on" : ""}
+            alt={`${s.title[0]} ${s.title[1]}`}
+            className={`rw-fallback ${i === active ? "on" : ""}`}
           />
         ),
       )}
@@ -106,9 +163,12 @@ export function HomeScreen() {
       if (!cancelled) setPicture(src ?? false);
     });
     Promise.all(
-      BANNERS.map(async (b) => {
-        const src = await firstThatExists(b.files);
-        return src ? { alt: b.alt, src } : null;
+      REWARDS.map(async (r): Promise<Slide | null> => {
+        if (await exists(r.art)) {
+          return { kind: r.kind, title: r.title, sub: r.sub, src: r.art, scene: true };
+        }
+        const src = await firstThatExists(r.fallback);
+        return src ? { kind: r.kind, title: r.title, sub: r.sub, src, scene: false } : null;
       }),
     ).then((list) => {
       if (!cancelled) setSlides(list.filter((x): x is Slide => Boolean(x)));
@@ -129,7 +189,7 @@ export function HomeScreen() {
       ) : null}
 
       <div className="home-bottom">
-        {slides.length ? <RewardSquare slides={slides} /> : null}
+        {slides.length ? <RewardStage slides={slides} /> : null}
         <div className="home-buttons">
           <Link href="/lobby" className="btn btn-gold">
             Enter club lobby
