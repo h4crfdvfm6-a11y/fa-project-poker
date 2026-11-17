@@ -1,0 +1,82 @@
+/* Lobby: moving deep water (see lobby-water.tsx) */
+html:has(.lobby-water) {
+  background: #08143a;
+}
+/* body must stay transparent or it paints over the water layer */
+html:has(.lobby-water) body {
+  background: transparent;
+}
+html:has(.lobby-water) body::before,
+html:has(.lobby-water) body::after {
+  display: none;
+}
+
+.lobby-water {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #08143a;
+}
+
+/* Only the water under the shark (bottom ~37% of the picture), filling the screen */
+.lw-layer {
+  position: absolute;
+  inset: -12%;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: auto 275%;
+  filter: brightness(1.35) saturate(1.1);
+  will-change: transform;
+}
+.lw-a {
+  animation: lwDriftA 26s ease-in-out infinite alternate;
+}
+/* a mirrored copy drifting the other way makes the ripples shimmer */
+.lw-b {
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  animation: lwDriftB 19s ease-in-out infinite alternate;
+}
+
+/* keep the middle darker so the table list is easy to read */
+.lw-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(110% 60% at 50% 45%, rgba(4, 10, 32, 0.35), rgba(4, 10, 32, 0.08) 70%, transparent),
+    linear-gradient(180deg, rgba(4, 10, 32, 0.25), transparent 25%, transparent 85%, rgba(4, 10, 32, 0.4));
+}
+
+.lw-spark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: radial-gradient(closest-side, #fff6d2, rgba(255, 210, 110, 0.85) 35%, transparent 70%);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: lwSpark 4s ease-in-out infinite;
+}
+
+@keyframes lwDriftA {
+  from { transform: translate3d(-3%, 0, 0) scale(1.02); }
+  to { transform: translate3d(3%, -2%, 0) scale(1.06); }
+}
+@keyframes lwDriftB {
+  from { transform: scaleX(-1) translate3d(-2%, 1%, 0) scale(1.05); }
+  to { transform: scaleX(-1) translate3d(3%, -1%, 0) scale(1.01); }
+}
+@keyframes lwSpark {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  50% { opacity: 0.9; transform: scale(1) rotate(45deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lw-a,
+  .lw-b,
+  .lw-spark {
+    animation: none;
+  }
+}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BrandMark } from "../brand-mark";
+import { LobbyWater } from "../lobby-water";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type LobbyData = {
@@ -71,6 +72,7 @@ export default function LobbyPage() {
   if (!data) {
     return (
       <main className="mx-auto max-w-lg px-5 py-10 text-[var(--muted)]">
+        <LobbyWater />
         Loading club lobby…
       </main>
     );
@@ -78,6 +80,7 @@ export default function LobbyPage() {
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-5 pb-12 pt-[max(20px,env(safe-area-inset-top))]">
+        <LobbyWater />
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <BrandMark />
