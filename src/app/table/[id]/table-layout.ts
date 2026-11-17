@@ -16,15 +16,15 @@ export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" }
  */
 type Spot = [number, number];
 const HERO: Spot = [50, 94.6];
-const L_LOW: Spot = [11, 87];
-const L_MID: Spot = [11, 66];
-const L_UP: Spot = [11, 40];
+const L_LOW: Spot = [9, 87];
+const L_MID: Spot = [9, 66];
+const L_UP: Spot = [9, 40];
 const T_LEFT: Spot = [33, 24];
 const T_MID: Spot = [50, 22.6];
 const T_RIGHT: Spot = [67, 24];
-const R_UP: Spot = [89, 40];
-const R_MID: Spot = [89, 66];
-const R_LOW: Spot = [89, 87];
+const R_UP: Spot = [91, 40];
+const R_MID: Spot = [91, 66];
+const R_LOW: Spot = [91, 87];
 
 /** The other players' spots, clockwise from your left, for each table size. */
 const LAYOUTS: Record<number, Spot[]> = {
@@ -44,6 +44,20 @@ export function seatPoint(slot: number, count: number): SeatPoint {
   const [x, y] = slot === 0 ? HERO : (LAYOUTS[n]![(slot - 1) % (n - 1)] ?? T_MID);
   const side = x < 42 ? "left" : x > 58 ? "right" : "top";
   return { x, y, side };
+}
+
+/**
+ * Where a player's bet (chip + amount) sits: in front of them, towards the
+ * middle of the table — beside the name box for side seats, under it for the
+ * top seats, and just above your cards for you.
+ */
+export function betPoint(slot: number, count: number): { x: number; y: number } {
+  const p = seatPoint(slot, count);
+  if (slot === 0) return { x: 50, y: 76.5 };
+  if (p.y < 30) return { x: p.x, y: p.y + 13.5 }; // top seats: under the name box
+  const inward = p.x < 50 ? 1 : -1;
+  if (p.y > 80) return { x: p.x + inward * 20, y: p.y - 11 }; // lower corners: up and in
+  return { x: p.x + inward * 20, y: p.y + 5 }; // sides: beside the name box
 }
 
 const CHIP_COLORS = ["purple", "black", "green", "blue", "red", "orange"] as const;
@@ -86,7 +100,7 @@ export function demoView(players: number) {
     memberId: s.memberId!,
     name: s.name,
     stack: i === 0 ? 4800 : 4750 + ((i * 50) % 200),
-    bet: i === 0 ? 0 : i % 3 === 1 ? 50 : 0,
+    bet: i === 0 ? 100 : i % 3 === 1 ? 50 : i % 3 === 2 ? 250 : 0,
     folded: n > 4 && i === n - 1,
     allIn: n > 5 && i === 2,
     isBot: false,

@@ -28,11 +28,80 @@
   gap: 6px;
 }
 
-/* one seat size for every table (the compact one), so seats never touch the pot or flop */
+/* ---------- players (GG-style): bigger picture on the edge of the table,
+   cards resting over the picture, name box tucked under it ---------- */
 .cs-seat,
 .cs-seat.dense {
-  --av: clamp(36px, 11cqw, 56px);
-  width: clamp(62px, 18.5cqw, 104px);
+  --av: clamp(44px, 15cqw, 68px);
+  width: clamp(66px, 20cqw, 110px);
+}
+.cs-seat .cs-seat-cards {
+  position: absolute;
+  top: calc(var(--av) * 0.16);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  gap: 0;
+  z-index: 4;
+}
+.cs-seat .cs-seat-cards .cs-card {
+  width: calc(var(--av) * 0.52);
+}
+.cs-seat .cs-seat-cards .cs-card + .cs-card {
+  margin-left: calc(var(--av) * -0.1);
+}
+.cs-seat .cs-plate {
+  margin-top: -8px;
+  z-index: 5;
+}
+
+/* bets in front of each player: chip + amount */
+.cs-bet {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  z-index: 80;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.cs-bet i {
+  width: clamp(18px, 5.6cqw, 26px);
+  aspect-ratio: 32 / 17;
+  background: var(--chip) center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+.cs-bet span {
+  padding: 1px 9px 2px;
+  border-radius: 10px;
+  background: rgba(5, 22, 13, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: clamp(10px, 3.2cqw, 14px);
+  font-weight: 800;
+}
+
+/* the pot amount is already in the TOTAL POT box: keep just the chips under the flop */
+.cs-center > .cs-chip-count {
+  display: none;
+}
+
+/* your cards bigger */
+.cs-hero-cards .cs-card {
+  width: min(17cqw, 100px);
+}
+
+/* table info in quiet text at the top of the middle (like "Hold'em, 200 / 500") */
+.cs-center > .cs-info {
+  order: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: clamp(10px, 3cqw, 13px);
+  font-weight: 700;
+  text-shadow: none;
+}
+.cs-center > .cs-info b {
+  color: inherit;
 }
 
 /* smaller TOTAL POT box */
@@ -49,10 +118,10 @@
 /* bigger flop / turn / river cards, still inside the felt */
 .cs-board {
   gap: clamp(3px, 0.9cqw, 6px);
-  min-height: calc(min(10.6cqw, 50px) * 1.4);
+  min-height: calc(min(11cqw, 52px) * 1.4);
 }
 .cs-board .cs-card {
-  width: min(10.6cqw, 50px);
+  width: min(11cqw, 52px);
 }
 
 /* ---------- gold blink: premium hands and the cards of a made hand ---------- */
@@ -175,7 +244,8 @@
 @media (max-height: 760px) {
   .cs-room .cs-seat,
   .cs-room .cs-seat.dense {
-    --av: 30px;
+    --av: 38px;
+    width: 62px;
   }
   .cs-room .cs-seat .cs-plate {
     padding: 2px 6px 3px;
@@ -191,6 +261,9 @@
   }
   .cs-room .cs-center::after {
     font-size: 11px;
+  }
+  .cs-room .cs-bet {
+    transform: translate(-50%, -50%) scale(0.85);
   }
 }
 

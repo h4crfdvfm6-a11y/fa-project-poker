@@ -17,7 +17,7 @@ import {
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
 import "./table-skin.css";
-import { demoView, potStacks, seatPoint } from "./table-layout";
+import { betPoint, demoView, potStacks, seatPoint } from "./table-layout";
 
 type TableView = {
   meMemberId: string | null;
@@ -608,9 +608,6 @@ export default function TablePage() {
       ? AVATAR_GLYPH[view.cosmetics!.avatar]
       : "😎";
   void heroAvatar;
-  const toActName =
-    hand?.toAct != null ? view.seats.find((s) => s.seat === hand.toAct)?.name : null;
-  const inHand = Boolean(hand && hand.street !== "waiting" && hand.street !== "showdown");
   const fmt = (n: number) => n.toLocaleString();
 
   return (
@@ -737,12 +734,6 @@ export default function TablePage() {
                 {view.table.cucuruchoAnteBb || 5}BB
               </>
             ) : null}
-            {inHand && !myTurn && toActName ? (
-              <>
-                <br />
-                Waiting for {toActName}…
-              </>
-            ) : null}
           </div>
         </div>
 
@@ -806,8 +797,6 @@ export default function TablePage() {
                 <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
                 {live?.allIn ? (
                   <div className="bt allin">ALL-IN</div>
-                ) : live && live.bet > 0 ? (
-                  <div className="bt">BET {fmt(live.bet)}</div>
                 ) : seat.memberId && view.squid?.scores?.[seat.memberId] ? (
                   <div className="bt">
                     🦑 {view.squid.scores[seat.memberId]}/{view.squid.target}
@@ -817,6 +806,24 @@ export default function TablePage() {
             </div>
           );
         })}
+
+        {/* bets in front of each player: a chip and the amount (like GG Poker) */}
+        {handSeats
+          .filter((s) => s.bet > 0)
+          .map((s) => {
+            const b = betPoint(slotOf(s.seat), seatCount);
+            const chip = potStacks(s.bet, view.table.bb)[0]?.color ?? "orange";
+            return (
+              <div
+                key={`bet-${s.seat}`}
+                className="cs-bet"
+                style={{ left: `${b.x}%`, top: `${b.y}%` }}
+              >
+                <i style={{ "--chip": asset(`chip-${chip}.png`) } as CSSProperties} />
+                <span>{fmt(s.bet)}</span>
+              </div>
+            );
+          })}
 
         {/* you */}
         {seated ? (
@@ -849,8 +856,6 @@ export default function TablePage() {
                 <div className="bt allin">FOLDED</div>
               ) : me?.allIn ? (
                 <div className="bt allin">ALL-IN</div>
-              ) : me && me.bet > 0 ? (
-                <div className="bt">BET {fmt(me.bet)}</div>
               ) : null}
               {view.meSeat != null && winnerOf(view.meSeat) ? (
                 <div className="cs-winner">
