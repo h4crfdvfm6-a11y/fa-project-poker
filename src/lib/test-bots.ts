@@ -11,6 +11,22 @@ export const TEST_BOTS = process.env.TEST_BOTS !== "0";
 /** While someone is looking for a seat, bots don't take the free one back. */
 const HOLD_SECONDS = 20;
 
+/** Make sure the test columns exist and ring tables have 9 seats (runs once). */
+let schemaReady: Promise<void> | null = null;
+function ensureTestSchema() {
+  schemaReady ??= (async () => {
+    await sql(`alter table cash_tables add column if not exists bot_hold_until timestamptz`);
+    await sql(
+      `update cash_tables set seats = 9
+       where coalesce(format, 'ring') <> 'tournament' and status = 'open' and seats < 9`,
+    );
+  })().catch((error) => {
+    schemaReady = null;
+    throw error;
+  });
+  return schemaReady;
+}
+
 type TableInfo = { format: string; status: string; hold_active: boolean };
 
 async function tableInfo(tableId: string) {
@@ -42,6 +58,7 @@ async function seatsOf(tableId: string) {
 /** Called on every table poll. Only acts between hands. */
 export async function manageTestBots(tableId: string, viewerId: string | null) {
   if (!TEST_BOTS) return;
+  await ensureTestSchema();
   const table = await tableInfo(tableId);
   if (!table || table.format === "tournament" || table.status !== "open") return;
   if (!(await betweenHands(tableId))) return;
@@ -80,6 +97,7 @@ export async function manageTestBots(tableId: string, viewerId: string | null) {
  */
 export async function waitForBetweenHands(tableId: string, maxMs = 45_000) {
   if (!TEST_BOTS) return;
+  await ensureTestSchema();
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     await sql(
