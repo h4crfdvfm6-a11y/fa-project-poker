@@ -7,7 +7,7 @@
  */
 import "./lobby-water.css";
 
-const LOBBY_GIF = "/banners/Blue_Water_Two_Moving_Areas_Under25MB.gif";
+const LOBBY_GIF = "/banners/Blue_Water_Two_Areas_Phone_10Seconds.gif";
 
 export function LobbyWater() {
   return (
