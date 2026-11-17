@@ -9,35 +9,39 @@ import "./table-landscape.css";
 export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" };
 
 /*
- * The seats sit on the padded rail of the table in the photo. The table box
- * (table-landscape.css) is sized from the photo, so these numbers are the
- * rail's centre line as a % of the box.
+ * Seat spots on the padded rail of the table in the photo, as % of the table
+ * box (table-landscape.css sizes the box from the photo). Laid out like the
+ * owner's drawing: you at the bottom middle, two seats on the top edge, and
+ * three down each side (upper corner, middle, lower corner).
  */
-const CX = 50;
-const CY = 58.6;
-const RX = 49;
-const RY = 36;
-/** keep side seats fully on screen */
-const X_MIN = 12;
-const X_MAX = 88;
+type Spot = [number, number];
+const HERO: Spot = [50, 94.6];
+const L_LOW: Spot = [11, 89];
+const L_MID: Spot = [11, 66];
+const L_UP: Spot = [11, 40];
+const T_LEFT: Spot = [33, 24];
+const T_MID: Spot = [50, 22.6];
+const T_RIGHT: Spot = [67, 24];
+const R_UP: Spot = [89, 40];
+const R_MID: Spot = [89, 66];
+const R_LOW: Spot = [89, 89];
 
-/**
- * Point for seat `slot` (0 = bottom centre, you) at a table with `count`
- * seats. Up to 6 seats the spacing is perfectly even; with 7–9 seats a gap is
- * kept either side of you so neighbours never overlap your cards.
- */
+/** The other players' spots, clockwise from your left, for each table size. */
+const LAYOUTS: Record<number, Spot[]> = {
+  2: [T_MID],
+  3: [T_LEFT, T_RIGHT],
+  4: [L_MID, T_MID, R_MID],
+  5: [L_MID, T_LEFT, T_RIGHT, R_MID],
+  6: [L_MID, L_UP, T_MID, R_UP, R_MID],
+  7: [L_MID, L_UP, T_LEFT, T_RIGHT, R_UP, R_MID],
+  8: [L_LOW, L_MID, L_UP, T_MID, R_UP, R_MID, R_LOW],
+  9: [L_LOW, L_MID, L_UP, T_LEFT, T_RIGHT, R_UP, R_MID, R_LOW],
+};
+
+/** Point for seat `slot` (0 = bottom centre, you) at a table with `count` seats. */
 export function seatPoint(slot: number, count: number): SeatPoint {
-  if (slot === 0) return { x: 50, y: CY + RY, side: "top" };
-  let angle: number;
-  if (count <= 2) {
-    angle = 270;
-  } else {
-    const gap = count <= 6 ? 360 / count : 58;
-    angle = 90 + gap + ((360 - 2 * gap) * (slot - 1)) / (count - 2);
-  }
-  const rad = (angle * Math.PI) / 180;
-  const x = Math.min(X_MAX, Math.max(X_MIN, CX + RX * Math.cos(rad)));
-  const y = CY + RY * Math.sin(rad);
+  const n = Math.min(9, Math.max(2, count));
+  const [x, y] = slot === 0 ? HERO : (LAYOUTS[n]![(slot - 1) % (n - 1)] ?? T_MID);
   const side = x < 42 ? "left" : x > 58 ? "right" : "top";
   return { x, y, side };
 }
@@ -86,7 +90,7 @@ export function demoView(players: number) {
     folded: n > 4 && i === n - 1,
     allIn: n > 5 && i === 2,
     isBot: false,
-    hole: i === 0 ? ["2c", "3h"] : ["xx", "xx"],
+    hole: i === 0 ? ["6c", "Ah"] : ["xx", "xx"],
   }));
   return {
     meMemberId: "me",
@@ -118,7 +122,13 @@ export function demoView(players: number) {
       result: null,
       seats: handSeats,
     },
-    handStrength: { label: "Two Pair", premium: null, intensity: 1 },
+    handStrength: {
+      label: "FULL HOUSE",
+      premium: null,
+      intensity: 1,
+      made: true,
+      madeCards: ["6c", "6d", "6h", "5c", "5d"],
+    },
     cosmetics: null,
     actions: [
       { type: "fold", label: "Fold" },
@@ -127,6 +137,7 @@ export function demoView(players: number) {
     ],
     sizing: { kind: "raise" as const, min: 100, max: 4800, presets: [] },
     phase: "demo",
+    actionMsLeft: 18_000,
     version: 1,
     bbjp: { balance: 0, enabled: true, trigger: "AAAKK", minimumHand: "AAAKK" },
   };

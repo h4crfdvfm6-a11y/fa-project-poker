@@ -1,4 +1,4 @@
-import { enforceActionTimeout } from "@/lib/action-timeout";
+import { actionMsLeft, enforceActionTimeout } from "@/lib/action-timeout";
 import { getTableView } from "@/lib/table-play";
 import { manageTestBots, TEST_BOTS } from "@/lib/test-bots";
 import { getPlayerId, isAdmin } from "@/lib/session";
@@ -18,7 +18,9 @@ export async function GET(
     const view = await getTableView(id, playerId, {
       advance: admin || (TEST_BOTS && Boolean(playerId)),
     });
-    return Response.json({ ...view, botFill: TEST_BOTS });
+    // time left for the player to act (drives the ring around their name box)
+    const msLeft = await actionMsLeft(id).catch(() => null);
+    return Response.json({ ...view, botFill: TEST_BOTS, actionMsLeft: msLeft });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed" },

@@ -34,3 +34,18 @@ export async function enforceActionTimeout(tableId: string) {
     // someone else acted first — nothing to do
   }
 }
+
+/**
+ * How long the player to act still has before the timer acts for them, so the
+ * table can draw the countdown ring around their name box. Measured on the
+ * server, so the phone's own clock doesn't matter.
+ */
+export async function actionMsLeft(tableId: string): Promise<number | null> {
+  const [row] = await sql<{ idle_ms: string | number | null }>(
+    `select extract(epoch from (now() - updated_at)) * 1000 as idle_ms
+     from table_runtime where table_id = $1`,
+    [tableId],
+  );
+  if (!row) return null;
+  return Math.max(0, ACTION_TIMEOUT_MS - Number(row.idle_ms ?? 0));
+}
