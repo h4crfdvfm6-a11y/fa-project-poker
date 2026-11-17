@@ -155,15 +155,21 @@ export default function AdminPage() {
     await refresh();
   }
 
-  async function sendChips(e: FormEvent) {
-    e.preventDefault();
+  async function sendChips(e: FormEvent | null, sign: 1 | -1 = 1) {
+    e?.preventDefault();
     setError("");
+    const amount = Math.abs(Number(sendAmount)) * sign;
+    if (!amount) {
+      setError("Enter an amount");
+      return;
+    }
     const res = await fetch("/api/admin/chips", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         memberId: sendMemberId,
-        amount: Number(sendAmount),
+        amount,
+        reason: sign > 0 ? "admin_send" : "admin_remove",
       }),
     });
     const json = await res.json();
@@ -203,10 +209,43 @@ export default function AdminPage() {
     await refresh();
   }
 
-  async function closeTable(id: string) {
-    await fetch(`/api/admin/tables?id=${encodeURIComponent(id)}`, {
+  async function closeTable(id: string, remove = false) {
+    if (
+      remove &&
+      !window.confirm("Delete this table? Anyone sitting is paid back and the table is gone for good.")
+    ) {
+      return;
+    }
+    setError("");
+    const res = await fetch(
+      `/api/admin/tables?id=${encodeURIComponent(id)}${remove ? "&delete=1" : ""}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError(json.error || "Could not update table");
+    }
+    await refresh();
+  }
+
+  async function removePlayer(m: Member) {
+    if (
+      !window.confirm(
+        `Remove ${m.display_name} from the club? Their ${money(m.chip_balance)} chips are taken back.`,
+      )
+    ) {
+      return;
+    }
+    setError("");
+    const res = await fetch(`/api/admin/members?id=${encodeURIComponent(m.id)}`, {
       method: "DELETE",
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error || "Could not remove player");
+      return;
+    }
+    if (sendMemberId === m.id) setSendMemberId("");
     await refresh();
   }
 
@@ -355,8 +394,8 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <form onSubmit={sendChips} className="panel grid gap-3 p-4">
-            <h2 className="brand text-xl">Send chips</h2>
+          <form onSubmit={(e) => sendChips(e, 1)} className="panel grid gap-3 p-4">
+            <h2 className="brand text-xl">Add or remove chips</h2>
             <div>
               <label className="label">Player</label>
               <select
@@ -372,7 +411,7 @@ export default function AdminPage() {
               </select>
             </div>
             <div>
-              <label className="label">Amount (+ send / − recall)</label>
+              <label className="label">Amount</label>
               <input
                 className="field"
                 type="number"
@@ -381,9 +420,18 @@ export default function AdminPage() {
                 required
               />
             </div>
-            <button className="btn btn-gold" type="submit">
-              Send chips
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button className="btn btn-gold" type="submit">
+                + Add chips
+              </button>
+              <button
+                className="btn btn-danger"
+                type="button"
+                onClick={() => void sendChips(null, -1)}
+              >
+                − Remove chips
+              </button>
+            </div>
           </form>
 
           <div className="grid gap-2">
@@ -396,7 +444,18 @@ export default function AdminPage() {
                   <div className="font-semibold">{m.display_name}</div>
                   <div className="text-xs text-[var(--muted)]">{m.role}</div>
                 </div>
-                <div className="text-[var(--gold)]">{money(m.chip_balance)}</div>
+                <div className="flex items-center gap-3">
+                  <div className="text-[var(--gold)]">{money(m.chip_balance)}</div>
+                  {m.role === "player" || m.role === "admin" ? (
+                    <button
+                      type="button"
+                      className="btn btn-danger !px-3 !py-1 !text-xs"
+                      onClick={() => void removePlayer(m)}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
@@ -560,14 +619,22 @@ export default function AdminPage() {
                     ? ` · Cucurucho ${t.cucurucho_ante_bb || 5}BB / ${t.cucurucho_every_hands || 1}h`
                     : ""}
                 </p>
-                {t.status === "open" ? (
+                <div className="mt-3 flex gap-2">
+                  {t.status === "open" ? (
+                    <button
+                      className="btn btn-ghost !py-2 !text-sm"
+                      onClick={() => closeTable(t.id)}
+                    >
+                      Close table
+                    </button>
+                  ) : null}
                   <button
-                    className="btn btn-danger mt-3 !py-2 !text-sm"
-                    onClick={() => closeTable(t.id)}
+                    className="btn btn-danger !py-2 !text-sm"
+                    onClick={() => closeTable(t.id, true)}
                   >
-                    Close table
+                    Delete table
                   </button>
-                ) : null}
+                </div>
               </div>
             ))}
           </div>

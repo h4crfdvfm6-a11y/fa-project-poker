@@ -1,5 +1,6 @@
 import { sitAtTable } from "@/lib/table-play";
 import { manageTestBots, waitForBetweenHands } from "@/lib/test-bots";
+import { isRemoved } from "@/lib/admin-actions";
 import { getPlayerId } from "@/lib/session";
 import { assertSameOrigin } from "@/lib/csrf";
 
@@ -13,6 +14,9 @@ export async function POST(
   const playerId = await getPlayerId();
   if (!playerId) {
     return Response.json({ error: "Join the club lobby first" }, { status: 401 });
+  }
+  if (await isRemoved(playerId)) {
+    return Response.json({ error: "You are no longer in this club" }, { status: 403 });
   }
   const body = (await request.json().catch(() => ({}))) as {
     seat?: number;
