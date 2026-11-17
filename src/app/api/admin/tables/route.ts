@@ -1,11 +1,13 @@
 import { closeTable, createTable, listTables } from "@/lib/club";
+import { deleteTable } from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/session";
 import { assertSameOrigin } from "@/lib/csrf";
 
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  return Response.json({ tables: await listTables() });
+  const tables = (await listTables()).filter((t) => t.status !== "deleted");
+  return Response.json({ tables });
 }
 
 export async function POST(request: Request) {
@@ -69,6 +71,8 @@ export async function DELETE(request: Request) {
   if (!tableId) {
     return Response.json({ error: "id required" }, { status: 400 });
   }
-  await closeTable(tableId);
+  // ?delete=1 removes the table for good; otherwise it is just closed
+  if (searchParams.get("delete") === "1") await deleteTable(tableId);
+  else await closeTable(tableId);
   return Response.json({ ok: true });
 }

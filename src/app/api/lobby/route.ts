@@ -20,10 +20,11 @@ export async function GET() {
   let myTournamentIds: string[] = [];
   if (playerId) {
     const rows = await sql(
-      "select id, display_name, chip_balance, role from members where id = $1",
+      "select id, display_name, chip_balance, role, status from members where id = $1",
       [playerId],
     );
-    me = rows[0] ?? null;
+    // a player the admin removed is treated as not in the club
+    me = rows[0] && rows[0].status !== "removed" ? rows[0] : null;
     myTournamentIds = await listMyTournamentIds(playerId);
   }
   return Response.json({
