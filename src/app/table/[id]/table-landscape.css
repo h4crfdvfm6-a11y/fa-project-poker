@@ -21,8 +21,9 @@
 
 /* pot, board, chips and info sit in the middle of the felt */
 .cs-center {
-  top: 58.6%;
+  top: 60%;
   width: 50%;
+  gap: 6px;
 }
 
 /* old big logo + name on the felt: replaced by the small brand line below */
@@ -44,9 +45,32 @@
   line-height: 1.3em;
   letter-spacing: 0.1em;
   color: #f6c74a;
-  background: var(--cs-card-logo) left center / 1.3em 1.3em no-repeat;
-  mix-blend-mode: screen;
-  opacity: 0.55;
+  /* the gold shark from the logo, cut out (see-through) */
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAABACAMAAABxwuT6AAAAkFBMVEUAAAD331369JD49+76zjX27Zn6+XLv5p/RqDH29Kz//QF5bAqqn1+kZR7Vs0rOsVaPbCHl0G+wjzGulVXvrWKVbxt2UgurjTK1jSZTMQ+YaA6gYVuymkx8eHK2sinIqGCyoZT5fwXlr56srO3/AAD/f3/loRnYzXgVFfTEpzvQstYAAFW3mUb//9AAAJkA///nSaTXAAAAMHRSTlMA+OwL/J8CWewUARMUEuKeXaSbWA2XUGnrIeIOnQYIXxMCFQYBAgRsA6cMA9tnBQEQ6OcIAAAEQ0lEQVR42p1XiXbiOBDslnzJlm8bA+YKkMkkM7v7/3+31bIhwIQJRs+P56tcrVZ1tSD6YySURsz+fxRrmj4aqjhjBaiZDk4oibgola+fIRdqpq3yQ6LJ6BdKPA6pViBPgumhI2U/qWPlE71OhAYS9xa/4D5MjTylmrkE6jfQu2Aaek2WPaYNLZg5p9hMgce7deTxliwVQG9xx+pH8bpxzCUFDeU48UNRS/MIv8biGOXiDdZ6Xc2ReRU6pPkGL9nRIbDzNtkHAT60mBUV1KrCUI/P77EiPq19xdXs5kmRKWRe8IH9mjUQVt/PC7k6GBPiYhihXiS5Ejzgx318C7W4Y0KlynT4hEx7HErhALs7EcVD/lesAvUBra0RpLrADuMNb9XuTKKPg+sMl6x4hRCV78AndOQODJnD6Utgt2ctg3UMUAn2IuY8Zwi9Gp5+xlEaiseItf95O1+talsUM4xiVnQplx2/5xJCVXVF21ZVFEUDOZl41ARGtuqS2zyGikom5vfi4iaWPoICZcL/yATzT1xgg75P3dg0oTW8MdwNS+DXbpIksq3kjuJsvlwS7d2yhuFOKvhUCFCNtbSvaSfO4mb7QfQBECKpf2MGEcDtkFJV4l23cKdCXLujsVTnFi942Q4SVNlMIpgVbbXtUrtlz/NYwhv0LcgRvx5C7cm+9e9D1rsx+lFf7EUAF6Rl/ST7Tsh0qiNtUCUNhS68yrmN/EhaAtwV4koCPkgG3ZoPhdAY04w0Bgs2b6/lqbUWrBcJr8GE5vOlK2PF4Zk5DMO6LoqFXMRXbinheF5HabAvo+WywGgdHtkFCksC6dY2OZXBpWfpQSRoNHRol0U/mij0FI11xauFC6BPjtciMmMeMjj8sWnx+RfkIYVqdb3KBs3CHPQ6/sIEXvUgz1xcIp+j3QxdJ6kzNxt4kut/Xw1Db8ytzA6nOutie26XxVzWwOOWftxtLiU+7cAB+dycKxWXyTISeDcs6xemRzuOliRF19OBuY4/HW5D1ML+ub7xnQviN16maInSG3ZSLJvLrkWz+V/AlsoKyVhkEvcOOe8v9wPHF0HnZO+ZNR4k0lWlow9Jv95l4Lt/67NQR5xIYXzI1JtbdLLaU3yPenhlJmgB8/56H5R8vy96ofZsguaW+/t9zK9RyZ5swqbuwWKaiRZFFSokM20f9COGF3GUOe5QXGjS5g2G6kEvUg+uH8bBhLDBGUnddtHgQjjdPwr+KU2FAifPZuVc5FHiI43ggA5hee6HOn4s6pM4dSlZh8zRD7Jcrx/i/lfAerDhbOWMku5V8lcJA7MYWtTS5P0q1ig3ghW/6+N4EhhlkZWSNIqTicwbEoUBP7vrd/cH2qDLcvsEFuNXJuJePJrhPyYtrfKZP1RwuVp6dGyfAWOlM85S6p8CG2wQs4SSp8DHGDb7LBh+0HF6apPTE77IarJPgl+pr+lB8/kfk7EzIR35qvEAAAAASUVORK5CYII=") left center / auto 1.3em no-repeat;
+  opacity: 0.6;
+}
+
+/* short phones (iPhone SE etc.): slightly smaller seats and centre so nothing touches */
+@media (max-height: 760px) {
+  .cs-room .cs-seat,
+  .cs-room .cs-seat.dense {
+    --av: 30px;
+  }
+  .cs-room .cs-seat .cs-plate {
+    padding: 2px 6px 3px;
+  }
+  .cs-room .cs-center {
+    gap: 3px;
+  }
+  .cs-room .cs-pot-box {
+    padding: 0.3em 1em 0.35em;
+  }
+  .cs-room .cs-chips {
+    height: 22px;
+  }
+  .cs-room .cs-center::after {
+    font-size: 11px;
+  }
 }
 
 /* computers / tablets: the phone layout in a centred phone-sized column */
