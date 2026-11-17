@@ -121,7 +121,11 @@ export function HomeScreen() {
   return (
     <main className="home-screen">
       {picture ? (
-        <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
+        <>
+          {/* soft, blurred water behind everything so the whole screen is one picture */}
+          <div className="home-water" style={{ backgroundImage: `url("${picture}")` }} />
+          <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
+        </>
       ) : picture === false ? (
         <div className="home-fallback-brand">
           <BrandMark size={48} />

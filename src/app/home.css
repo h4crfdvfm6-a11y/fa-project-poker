@@ -36,6 +36,19 @@ html:has(.home-screen) body::after {
   mask-image: linear-gradient(transparent 0, #000 9%, #000 88%, transparent 100%);
 }
 
+/* Water continues down the whole screen: the same picture, flipped, blurred and
+   darkened, so the rewards and buttons sit on water — no flat blue band. */
+.home-water {
+  position: fixed;
+  inset: 0;
+  left: 50%;
+  width: min(100vw, 430px);
+  transform: translateX(-50%) scale(1.1) scaleY(-1);
+  z-index: 0;
+  background: #08143a center bottom / cover no-repeat;
+  filter: blur(14px) brightness(0.8);
+}
+
 .home-fallback-brand {
   position: relative;
   z-index: 1;
@@ -54,14 +67,14 @@ html:has(.home-screen) body::after {
   padding: 0 16px max(16px, env(safe-area-inset-bottom));
 }
 
-/* Rewards take turns under the shark — no box: soft edges and a lighten blend
-   so each GIF's dark background melts into the water */
+/* Rewards take turns under the shark — no box: soft round edges and a screen
+   blend so each GIF's dark background melts into the water */
 .home-square {
   position: relative;
   width: max(150px, min(88vw, calc(100dvh - min(109vw, 469px) - 6vh - 70px), 360px));
   aspect-ratio: 1;
-  -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
-  mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 66%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 66%, transparent 100%);
 }
 .home-square img,
 .home-square video {
@@ -70,7 +83,8 @@ html:has(.home-screen) body::after {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  mix-blend-mode: lighten;
+  transform: scale(1.04);
+  mix-blend-mode: screen;
   opacity: 0;
   transition: opacity 0.45s ease;
 }
