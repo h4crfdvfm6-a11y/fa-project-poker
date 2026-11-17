@@ -19,11 +19,117 @@
   max-height: none;
 }
 
-/* pot, board, chips and info sit in the middle of the felt */
+/* pot, board, chips and info: a column on the felt that starts just under the
+   top seats (owner's drawing: small TOTAL POT, then a big flop) */
 .cs-center {
-  top: 60%;
-  width: 50%;
+  top: 40.6%;
+  transform: translate(-50%, 0);
+  width: 62%;
   gap: 6px;
+}
+
+/* one seat size for every table (the compact one), so seats never touch the pot or flop */
+.cs-seat,
+.cs-seat.dense {
+  --av: clamp(36px, 11cqw, 56px);
+  width: clamp(62px, 18.5cqw, 104px);
+}
+
+/* smaller TOTAL POT box */
+.cs-pot-box {
+  min-width: 0;
+  padding: 0.3em 0.9em 0.35em;
+  border-radius: 10px;
+  font-size: clamp(8px, 2.3cqw, 11px);
+}
+.cs-pot-box b {
+  font-size: 1.75em;
+}
+
+/* bigger flop / turn / river cards, still inside the felt */
+.cs-board {
+  gap: clamp(3px, 0.9cqw, 6px);
+  min-height: calc(min(10.6cqw, 50px) * 1.4);
+}
+.cs-board .cs-card {
+  width: min(10.6cqw, 50px);
+}
+
+/* ---------- gold blink: premium hands and the cards of a made hand ---------- */
+.cs-card.blink {
+  animation: csGoldBlink 1.1s ease-in-out infinite;
+}
+@keyframes csGoldBlink {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(255, 217, 79, 0.95), 0 0 6px rgba(255, 196, 46, 0.45), 0 4px 9px #0008;
+  }
+  50% {
+    box-shadow: 0 0 0 3px #ffe17a, 0 0 18px rgba(255, 205, 60, 0.95), 0 4px 9px #0008;
+  }
+}
+
+/* made hand under your name box: TWO PAIR, STRAIGHT, FLUSH, FULL HOUSE … */
+.cs-made-hand {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  padding: 1px 9px 2px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-size: clamp(10px, 3cqw, 13px);
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  color: #ffd94f;
+  background: rgba(8, 10, 14, 0.82);
+  border: 1px solid rgba(246, 199, 74, 0.55);
+  text-shadow: 0 0 8px rgba(255, 208, 58, 0.6);
+}
+
+/* ---------- 30-second turn clock around the name box (from the original table) ---------- */
+.cs-plate {
+  position: relative;
+}
+.cs-plate.turn-clock::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 11px;
+  padding: 2px;
+  background: conic-gradient(
+    from -90deg,
+    rgba(220, 184, 92, 1) 0deg,
+    rgba(220, 184, 92, 1) calc(var(--turn-progress, 0) * 360deg),
+    rgba(220, 184, 92, 0.14) calc(var(--turn-progress, 0) * 360deg),
+    rgba(220, 184, 92, 0.14) 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 5;
+  filter: drop-shadow(0 0 2px rgba(220, 184, 92, 0.42)) drop-shadow(0 0 4px rgba(220, 184, 92, 0.18));
+}
+.turn-seconds {
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #090b0f;
+  border: 1px solid rgba(220, 184, 92, 0.72);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  z-index: 7;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.48);
 }
 
 /* old big logo + name on the felt: replaced by the small brand line below */

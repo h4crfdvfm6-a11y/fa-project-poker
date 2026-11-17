@@ -112,7 +112,13 @@ type TableView = {
     label: string;
     premium: string | null;
     intensity: number;
+    /** pair or better made with at least one of your own cards */
+    made?: boolean;
+    /** the cards that make that hand (yours + board) — they blink gold */
+    madeCards?: string[];
   };
+  /** ms the player to act has left before the 30 s timer acts for them */
+  actionMsLeft?: number | null;
   cosmetics?: null | { avatar: string; felt: string; cardBack: string };
   actions: Array<{ type: string; label: string; amount?: number }>;
   sizing: null | {
@@ -156,10 +162,13 @@ const SUITS: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" }
 function PlayingCard({
   card,
   premium,
+  blink,
   cardBack = "back_navy",
 }: {
   card: string;
   premium?: boolean;
+  /** gold blink: premium starting hand, or part of a made hand */
+  blink?: boolean;
   cardBack?: string;
 }) {
   if (card === "xx") {
@@ -170,7 +179,9 @@ function PlayingCard({
   const red = card[1] === "h" || card[1] === "d";
   const rank = card[0] === "T" ? "10" : card[0];
   return (
-    <div className={`cs-card ${red ? "red" : ""} ${premium ? "premium" : ""}`}>
+    <div
+      className={`cs-card ${red ? "red" : ""} ${premium ? "premium" : ""} ${blink ? "blink" : ""}`}
+    >
       <div className="r">{rank}</div>
       <div className="s">{SUITS[card[1]!] || card[1]}</div>
     </div>
@@ -213,6 +224,10 @@ export default function TablePage() {
   const lastPremium = useRef<string | null>(null);
   const lastHandNo = useRef<number | null>(null);
   const lastWinHandNo = useRef<number | null>(null);
+  const prevView = useRef<TableView | null>(null);
+  const clockKey = useRef<string>("");
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
     if (isDemo) {
@@ -279,6 +294,65 @@ export default function TablePage() {
       playSound("win");
     }
   }, [view?.hand?.handNo, view?.hand?.result]);
+
+  // Sounds for everyone's moves (like the original table): chips for calls,
+  // bets and raises, a knock for a check, a card flick for a fold or new card.
+  useEffect(() => {
+    const prev = prevView.current;
+    prevView.current = view;
+    const a = prev?.hand;
+    const b = view?.hand;
+    if (!a || !b || a.handNo !== b.handNo || b.mode === "ofc") return;
+    if (b.board.length > a.board.length) {
+      playSound("turn");
+      if (b.pot > a.pot) setTimeout(() => playSound("collect"), 120);
+      return;
+    }
+    let played = false;
+    for (const s of b.seats) {
+      if (s.seat === view?.meSeat) continue; // your own move already made its sound
+      const before = a.seats.find((x) => x.seat === s.seat);
+      if (!before) continue;
+      if (s.folded && !before.folded) {
+        playSound("fold");
+        played = true;
+      } else if (s.bet > before.bet) {
+        playSound(s.allIn ? "allin" : s.bet > a.currentBet ? "raise" : "call");
+        played = true;
+      }
+    }
+    // the player to act passed without betting or folding: a check
+    if (!played && a.toAct != null && a.toAct !== b.toAct && a.toAct !== view?.meSeat) {
+      const was = b.seats.find((x) => x.seat === a.toAct);
+      const before = a.seats.find((x) => x.seat === a.toAct);
+      if (was && before && !was.folded && was.bet === before.bet) playSound("check");
+    }
+  }, [view]);
+
+  // 30-second turn clock (ring around the name box of the player to act)
+  useEffect(() => {
+    const h = view?.hand;
+    const live =
+      h && h.toAct != null && h.street !== "showdown" && h.street !== "waiting" && !h.result;
+    if (!h || !live) {
+      clockKey.current = "";
+      setDeadline(null);
+      return;
+    }
+    const key = `${h.handNo}:${h.street}:${h.toAct}:${h.currentBet}`;
+    if (key !== clockKey.current) {
+      clockKey.current = key;
+      setDeadline(Date.now() + (view?.actionMsLeft ?? 30_000));
+    } else if (view?.actionMsLeft != null) {
+      setDeadline(Date.now() + view.actionMsLeft);
+    }
+  }, [view]);
+
+  useEffect(() => {
+    if (deadline == null) return;
+    const t = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(t);
+  }, [deadline]);
 
   const seated = view?.meSeat != null;
   const betweenHands =
@@ -464,6 +538,24 @@ export default function TablePage() {
 
   const hand = view.hand;
   const handSeats = hand?.seats ?? [];
+
+  // turn clock: ring around the name box of the player to act
+  const clockLeft = deadline != null ? Math.max(0, deadline - now) : null;
+  const clockFor = (seatNo: number | null | undefined) =>
+    clockLeft != null && seatNo != null && hand?.toAct === seatNo
+      ? {
+          className: "turn-clock",
+          style: { "--turn-progress": Math.min(1, clockLeft / 30_000) } as CSSProperties,
+          badge: <span className="turn-seconds">{Math.ceil(clockLeft / 1000)}</span>,
+        }
+      : { className: "", style: undefined, badge: null };
+
+  // gold blink: premium starting hand, or the cards making a pair or better with the board
+  const strength = view.handStrength;
+  const madeCards = new Set(strength?.made ? (strength.madeCards ?? []) : []);
+  const preflopPremium = Boolean(strength?.premium) && (hand?.board.length ?? 0) < 3;
+  const madeLabel =
+    strength?.made && (hand?.board.length ?? 0) >= 3 ? strength.label : null;
   const isTournament = view.table.format === "tournament" || Boolean(view.tournament);
   const tournamentDone = view.tournament?.status === "finished";
   const iWon =
@@ -599,7 +691,7 @@ export default function TablePage() {
           </div>
           <div className="cs-board">
             {(hand?.board ?? []).map((c, i) => (
-              <PlayingCard key={`${c}-${i}`} card={c} />
+              <PlayingCard key={`${c}-${i}`} card={c} blink={madeCards.has(c)} />
             ))}
           </div>
           {hand?.pot ? (
@@ -705,7 +797,11 @@ export default function TablePage() {
                   ))}
                 </div>
               ) : null}
-              <div className="cs-plate">
+              <div
+                className={`cs-plate ${clockFor(seat.seat).className}`}
+                style={clockFor(seat.seat).style}
+              >
+                {clockFor(seat.seat).badge}
                 <div className="n">{seat.name}</div>
                 <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
                 {live?.allIn ? (
@@ -734,12 +830,17 @@ export default function TablePage() {
                     key={`${c}-${i}`}
                     card={c}
                     premium={Boolean(view.handStrength?.premium)}
+                    blink={!me?.folded && (preflopPremium || madeCards.has(c))}
                     cardBack={view.cosmetics?.cardBack}
                   />
                 ))}
               </div>
             ) : null}
-            <div className="cs-plate" style={{ position: "relative" }}>
+            <div
+              className={`cs-plate ${clockFor(view.meSeat).className}`}
+              style={{ position: "relative", ...clockFor(view.meSeat).style }}
+            >
+              {clockFor(view.meSeat).badge}
               <div className="n">
                 You{hand && hand.button === view.meSeat ? " · D" : ""}
               </div>
@@ -763,6 +864,7 @@ export default function TablePage() {
                 <div className="cs-reaction">{reactionOf(view.meSeat)!.emoji}</div>
               ) : null}
             </div>
+            {madeLabel && !me?.folded ? <div className="cs-made-hand">{madeLabel}</div> : null}
           </div>
         ) : null}
       </div>

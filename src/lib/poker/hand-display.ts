@@ -1,5 +1,5 @@
 import type { Card } from "./cards";
-import { parseCard } from "./cards";
+import { cardId, parseCard } from "./cards";
 import { bestHand, handName } from "./eval";
 import type { GameType } from "./variants";
 
@@ -38,11 +38,30 @@ export function premiumIntensity(tier: PremiumTier): number {
   }
 }
 
+export type MadeHand = {
+  label: string;
+  premium: PremiumTier;
+  intensity: number;
+  /** pair or better that uses at least one of the player's own cards */
+  made?: boolean;
+  /** the cards (yours + board) that make the hand, e.g. the two pair cards */
+  madeCards?: string[];
+};
+
+/** The cards that form the hand itself (no kickers): pairs/trips/quads by rank, all five for straights/flushes/full houses. */
+function cardsMakingHand(category: number, five: Card[]): Card[] {
+  if (category >= 4) return five; // straight, flush, full house, quads, straight flush
+  if (category < 1) return [];
+  const count = new Map<number, number>();
+  for (const c of five) count.set(c.r, (count.get(c.r) ?? 0) + 1);
+  return five.filter((c) => (count.get(c.r) ?? 0) >= 2);
+}
+
 export function describeMadeHand(
   holeIds: string[],
   boardIds: string[],
   game: GameType = "NLH",
-): { label: string; premium: PremiumTier; intensity: number } | null {
+): MadeHand | null {
   if (!holeIds.length || holeIds.every((c) => c === "xx")) return null;
   try {
     const hole = holeIds.filter((c) => c !== "xx").map(parseCard);
@@ -55,11 +74,18 @@ export function describeMadeHand(
         intensity: premiumIntensity(premium),
       };
     }
-    const { score } = bestHand(hole, board, game);
+    const { score, cards } = bestHand(hole, board, game);
+    const category = score[0] ?? 0;
+    const making = cardsMakingHand(category, cards);
+    const holeSet = new Set(hole.map(cardId));
+    const made = making.some((c) => holeSet.has(cardId(c)));
+    const royal = category === 8 && score[1] === 14;
     return {
-      label: handName(score).toUpperCase(),
+      label: royal ? "ROYAL FLUSH" : handName(score).toUpperCase(),
       premium,
       intensity: premiumIntensity(premium),
+      made,
+      madeCards: made ? making.map(cardId) : [],
     };
   } catch {
     return null;

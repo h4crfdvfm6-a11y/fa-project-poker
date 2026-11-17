@@ -1,4 +1,8 @@
-/** Tiny Web Audio beeps — no asset files required. */
+/**
+ * Table sounds. The real recorded sounds from the original F.A Poker table
+ * (poker chips, card deal, table knock — served by /sounds/[name]) are played
+ * through Web Audio; tiny beeps are only a fallback while they load.
+ */
 
 let ctx: AudioContext | null = null;
 
@@ -45,7 +49,8 @@ export type SoundKind =
   | "win"
   | "turn"
   | "premium"
-  | "react";
+  | "react"
+  | "collect";
 
 const MUTE_KEY = "fa_mute_sounds";
 
@@ -57,6 +62,59 @@ export function soundsMuted(): boolean {
 export function setSoundsMuted(muted: boolean) {
   if (typeof window === "undefined") return;
   localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+}
+
+/* ---------- recorded sounds from the original table ---------- */
+const SAMPLE_FILES = {
+  chips: "/sounds/poker-chips.mp3",
+  deal: "/sounds/card-deal.mp3",
+  knock: "/sounds/check-knock.mp3",
+} as const;
+type Sample = keyof typeof SAMPLE_FILES;
+const buffers: Partial<Record<Sample, AudioBuffer>> = {};
+let loading = false;
+
+function loadSamples() {
+  if (loading || typeof window === "undefined") return;
+  const a = audio();
+  if (!a) return;
+  loading = true;
+  (Object.keys(SAMPLE_FILES) as Sample[]).forEach((k) => {
+    fetch(SAMPLE_FILES[k])
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error("missing"))))
+      .then(
+        (data) =>
+          new Promise<AudioBuffer>((resolve, reject) => a.decodeAudioData(data, resolve, reject)),
+      )
+      .then((buf) => {
+        buffers[k] = buf;
+      })
+      .catch(() => undefined);
+  });
+}
+
+/** Play a recorded sound; returns false if it isn't loaded yet. */
+function sample(k: Sample, vol: number): boolean {
+  if (soundsMuted()) return true;
+  const a = audio();
+  const buf = buffers[k];
+  if (!a || !buf) {
+    loadSamples();
+    return false;
+  }
+  const src = a.createBufferSource();
+  const g = a.createGain();
+  g.gain.value = vol;
+  src.buffer = buf;
+  src.connect(g);
+  g.connect(a.destination);
+  src.start();
+  return true;
+}
+
+if (typeof window !== "undefined") {
+  // start loading straight away so the first sound is ready
+  setTimeout(loadSamples, 0);
 }
 
 function beep(freq: number, dur = 0.08, type: OscillatorType = "sine", gain = 0.04) {
@@ -78,34 +136,44 @@ function beep(freq: number, dur = 0.08, type: OscillatorType = "sine", gain = 0.
 }
 
 export function playSound(kind: SoundKind) {
+  // same sounds and loudness as the original F.A Poker table
   switch (kind) {
     case "deal":
-      beep(520, 0.05, "triangle", 0.03);
+      if (!sample("deal", 0.42)) beep(520, 0.05, "triangle", 0.03);
+      break;
+    case "turn":
+      if (!sample("deal", 0.4)) beep(600, 0.05, "triangle", 0.035);
       break;
     case "check":
-      beep(340, 0.06, "sine", 0.03);
+      if (!sample("knock", 0.72)) beep(340, 0.06, "sine", 0.03);
       break;
     case "call":
-      beep(400, 0.07, "sine", 0.035);
+      if (!sample("chips", 0.52)) beep(400, 0.07, "sine", 0.035);
       break;
     case "bet":
     case "raise":
-      beep(280, 0.09, "square", 0.03);
-      setTimeout(() => beep(360, 0.06, "square", 0.025), 60);
+      if (!sample("chips", 0.62)) {
+        beep(280, 0.09, "square", 0.03);
+        setTimeout(() => beep(360, 0.06, "square", 0.025), 60);
+      }
       break;
     case "fold":
-      beep(180, 0.1, "sawtooth", 0.025);
+      if (!sample("deal", 0.34)) beep(180, 0.1, "sawtooth", 0.025);
       break;
     case "allin":
-      beep(220, 0.12, "square", 0.04);
-      setTimeout(() => beep(440, 0.12, "square", 0.035), 90);
+      if (!sample("chips", 0.68)) {
+        beep(220, 0.12, "square", 0.04);
+        setTimeout(() => beep(440, 0.12, "square", 0.035), 90);
+      }
+      break;
+    case "collect":
+      if (!sample("chips", 0.48)) beep(400, 0.07, "sine", 0.03);
       break;
     case "win":
-      beep(523, 0.1, "sine", 0.04);
-      setTimeout(() => beep(659, 0.12, "sine", 0.04), 100);
-      break;
-    case "turn":
-      beep(600, 0.05, "triangle", 0.035);
+      if (!sample("chips", 0.72)) {
+        beep(523, 0.1, "sine", 0.04);
+        setTimeout(() => beep(659, 0.12, "sine", 0.04), 100);
+      }
       break;
     case "premium":
       beep(660, 0.1, "sine", 0.045);
