@@ -8,32 +8,26 @@ import "./table-landscape.css";
 
 export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" };
 
+/*
+ * The seats sit on the padded rail of the table in the photo. The table box
+ * (table-landscape.css) is sized from the photo, so these numbers are the
+ * rail's centre line as a % of the box.
+ */
 const CX = 50;
-const CY = 46;
-const RX = 39;
-const RY = 38;
-
-/** Original 6-max seat spots, lined up with the table in the photo. */
-const SIX_MAX: Array<[number, number]> = [
-  [50, 86],
-  [11, 70],
-  [11, 27],
-  [50, 11],
-  [89, 27],
-  [89, 70],
-];
+const CY = 58.6;
+const RX = 49;
+const RY = 36;
+/** keep side seats fully on screen */
+const X_MIN = 12;
+const X_MAX = 88;
 
 /**
- * Point for seat `slot` (0 = bottom centre) at a table with `count` seats.
- * Up to 6 seats the spacing is perfectly even; with 7–9 seats a gap is kept
- * either side of the hero so neighbours never overlap your cards.
+ * Point for seat `slot` (0 = bottom centre, you) at a table with `count`
+ * seats. Up to 6 seats the spacing is perfectly even; with 7–9 seats a gap is
+ * kept either side of you so neighbours never overlap your cards.
  */
 export function seatPoint(slot: number, count: number): SeatPoint {
-  if (slot === 0) return { x: 50, y: 88, side: "top" };
-  if (count === 6) {
-    const [x, y] = SIX_MAX[slot] ?? SIX_MAX[1]!;
-    return { x, y, side: x < 42 ? "left" : x > 58 ? "right" : "top" };
-  }
+  if (slot === 0) return { x: 50, y: CY + RY, side: "top" };
   let angle: number;
   if (count <= 2) {
     angle = 270;
@@ -42,7 +36,7 @@ export function seatPoint(slot: number, count: number): SeatPoint {
     angle = 90 + gap + ((360 - 2 * gap) * (slot - 1)) / (count - 2);
   }
   const rad = (angle * Math.PI) / 180;
-  const x = CX + RX * Math.cos(rad);
+  const x = Math.min(X_MAX, Math.max(X_MIN, CX + RX * Math.cos(rad)));
   const y = CY + RY * Math.sin(rad);
   const side = x < 42 ? "left" : x > 58 ? "right" : "top";
   return { x, y, side };
