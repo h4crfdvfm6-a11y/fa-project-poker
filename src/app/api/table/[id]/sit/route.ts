@@ -1,4 +1,5 @@
 import { sitAtTable } from "@/lib/table-play";
+import { manageTestBots, waitForBetweenHands } from "@/lib/test-bots";
 import { getPlayerId } from "@/lib/session";
 import { assertSameOrigin } from "@/lib/csrf";
 
@@ -18,6 +19,9 @@ export async function POST(
     buyIn?: number;
   };
   try {
+    // test mode: wait for the bots' hand to finish, make sure a seat is free
+    await waitForBetweenHands(id);
+    await manageTestBots(id, playerId).catch(() => undefined);
     const view = await sitAtTable(
       id,
       playerId,
