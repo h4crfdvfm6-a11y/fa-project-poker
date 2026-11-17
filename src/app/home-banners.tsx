@@ -3,37 +3,55 @@
 import { useEffect, useState } from "react";
 
 /**
- * Home page reward tiles (6-second looping videos). Upload the files to
- * `public/banners/` on GitHub with these exact names and they appear
- * automatically; any that are missing stay hidden.
+ * Home page reward tiles. Each one plays the MP4 if it is in public/banners/,
+ * otherwise the GIF; any that are missing stay hidden.
  */
 const BANNERS = [
-  { src: "/banners/bad-beat-jackpot.mp4", alt: "Bad Beat Jackpot" },
-  { src: "/banners/high-hand.mp4", alt: "High Hand" },
-  { src: "/banners/hand-of-the-day.mp4", alt: "Hand of the Day" },
+  {
+    alt: "Bad Beat Jackpot",
+    files: ["/banners/bad-beat-jackpot.mp4", "/banners/Bad_Beat_Jackpot.gif"],
+  },
+  { alt: "High Hand", files: ["/banners/high-hand.mp4", "/banners/High_Hand.gif"] },
+  {
+    alt: "Hand of the Day",
+    files: ["/banners/hand-of-the-day.mp4", "/banners/Hand_of_the_Day.gif"],
+  },
 ];
 
+async function firstThatExists(files: string[]) {
+  for (const f of files) {
+    try {
+      const r = await fetch(f, { method: "HEAD" });
+      if (r.ok) return f;
+    } catch {
+      // try the next one
+    }
+  }
+  return null;
+}
+
 export function HomeBanners() {
-  const [available, setAvailable] = useState<string[]>([]);
+  const [found, setFound] = useState<Array<{ alt: string; src: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all(
-      BANNERS.map((b) =>
-        fetch(b.src, { method: "HEAD" })
-          .then((r) => (r.ok ? b.src : null))
-          .catch(() => null),
-      ),
-    ).then((found) => {
-      if (!cancelled) setAvailable(found.filter((s): s is string => Boolean(s)));
+      BANNERS.map(async (b) => {
+        const src = await firstThatExists(b.files);
+        return src ? { alt: b.alt, src } : null;
+      }),
+    ).then((list) => {
+      if (!cancelled) setFound(list.filter((x): x is { alt: string; src: string } => Boolean(x)));
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const shown = BANNERS.filter((b) => available.includes(b.src));
-  if (!shown.length) return null;
+  if (!found.length) return null;
+
+  const tile =
+    "aspect-square w-[78%] shrink-0 snap-center rounded-2xl border border-[var(--line)] object-cover shadow-[0_10px_30px_rgba(0,0,0,.35)]";
 
   return (
     <section
@@ -41,18 +59,23 @@ export function HomeBanners() {
       style={{ scrollbarWidth: "none" }}
       aria-label="Club rewards"
     >
-      {shown.map((b) => (
-        <video
-          key={b.src}
-          src={b.src}
-          aria-label={b.alt}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="aspect-square w-[78%] shrink-0 snap-center rounded-2xl border border-[var(--line)] object-cover shadow-[0_10px_30px_rgba(0,0,0,.35)]"
-        />
-      ))}
+      {found.map((b) =>
+        b.src.endsWith(".mp4") ? (
+          <video
+            key={b.src}
+            src={b.src}
+            aria-label={b.alt}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className={tile}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={b.src} src={b.src} alt={b.alt} className={tile} />
+        ),
+      )}
     </section>
   );
 }

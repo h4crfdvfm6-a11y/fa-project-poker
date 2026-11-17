@@ -1,7 +1,8 @@
 /*
- * Shark Club table — fixes loaded after table-skin.css.
- * Landscape screens (phone sideways, laptop, desktop) use the landscape table photo,
- * stretched to the screen so the seats always sit on the photo's table.
+ * Shark Club table — PHONE ONLY (held upright).
+ * Loaded after table-skin.css and overrides its sideways/desktop rules:
+ *  - computers and tablets show the same phone layout in a phone-sized column
+ *  - a phone turned sideways shows "turn your phone upright"
  */
 
 /* soften the logo so it reads as printed on the felt */
@@ -10,79 +11,108 @@
   mask-image: radial-gradient(circle, #000 52%, transparent 70%);
 }
 
-/* wide table: pot, board and chips in one row across the middle of the felt;
-   logo left and name right of your seat, all clear of the players */
-@container table (min-aspect-ratio: 1 / 1) {
-  .cs-center {
-    top: 52%;
-    transform: translate(-50%, -50%);
-    width: 66%;
-    flex-direction: row;
-    justify-content: center;
-    gap: clamp(8px, 2cqw, 28px);
-  }
-  .cs-pot-box {
-    min-width: 0;
-  }
-  .cs-card {
-    width: min(5cqw, 12cqh, 70px);
-  }
-  .cs-board {
-    min-height: calc(min(5cqw, 12cqh, 70px) * 1.4);
-  }
-  .cs-chips {
-    height: clamp(20px, 12cqh, 48px);
-  }
-  .cs-info {
-    text-align: left;
-  }
-  .cs-seat {
-    --av: clamp(36px, 14cqh, 64px);
-  }
-  .cs-seat.dense {
-    --av: clamp(32px, 12cqh, 56px);
-  }
-  .cs-table::before {
-    left: 31%;
-    top: 78%;
-    width: min(28cqh, 12cqw, 180px);
-    opacity: 0.35;
-  }
-  .cs-table::after {
-    left: 69%;
-    top: 78%;
-    font-size: clamp(12px, 6.5cqh, 40px);
-  }
-}
-
-@media (orientation: landscape) {
+/* computers / tablets: the phone layout in a centred phone-sized column */
+@media (min-width: 600px) {
   .cs-room {
+    left: 50%;
+    right: auto;
+    width: min(100vw, 430px);
+    transform: translateX(-50%);
     background:
-      linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.08)),
-      var(--cs-bg-landscape) center / 100% 100% no-repeat,
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)),
+      url("https://cold-wildflower-f465.cardsharksclublondon.workers.dev/casino-table.jpg") center top / cover no-repeat,
       #000;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 60px rgba(0, 0, 0, 0.8);
+  }
+  .cs-hud {
+    top: 8px;
+    height: 40px;
+  }
+  .cs-hud-btn {
+    height: 40px;
+    min-width: 40px;
+    font-size: 15px;
+  }
+  .cs-corner-info {
+    top: 54px;
+    font-size: 11px;
   }
   .cs-table {
-    left: 10.4%;
-    transform: none;
-    top: 39vh;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 54px;
     bottom: auto;
-    width: 79.2vw;
+    width: 94%;
     max-width: none;
-    height: 42vh;
-    min-height: 0;
-    max-height: none;
+    height: calc(100dvh - 226px);
+    min-height: 500px;
+    max-height: 640px;
   }
   .cs-controls {
-    width: min(80vw, 1080px);
-    bottom: max(6px, env(safe-area-inset-bottom));
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: calc(100% - 16px);
+    bottom: 8px;
+    grid-template-columns: 1fr 52px;
+    grid-template-rows: auto auto;
+    gap: 6px;
+  }
+  .cs-presets {
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: repeat(4, 1fr) 1.15fr;
+  }
+  .cs-actions {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .cs-vslider {
+    display: flex;
+  }
+  .cs-preset,
+  .cs-amount {
+    height: 44px;
+    font-size: 11px;
+  }
+  .cs-preset small {
+    font-size: 11px;
+  }
+  .cs-amount span {
+    font-size: 15px;
+  }
+  .cs-action {
+    height: 54px;
+    font-size: 14px;
+  }
+  .cs-ofc {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    top: auto;
+    width: calc(100% - 16px);
+    bottom: 126px;
+  }
+  .cs-sheet {
+    width: 100%;
   }
 }
 
-/* short landscape screens (phones sideways): one-row controls */
-@media (orientation: landscape) and (max-height: 540px) {
-  .cs-controls {
-    width: min(94vw, 800px);
-    bottom: max(3px, env(safe-area-inset-bottom));
+/* phone turned sideways: ask to turn it upright */
+@media (orientation: landscape) and (max-height: 540px) and (pointer: coarse) {
+  .cs-room::before {
+    content: "📱  Turn your phone upright to play";
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #f6c74a;
+    background: #05060a;
   }
 }
