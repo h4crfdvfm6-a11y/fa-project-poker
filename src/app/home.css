@@ -23,8 +23,9 @@ html:has(.home-screen) body::after {
 /* The picture: full phone width (SHARK CLUB never cut off), a little way down
    from the top, with its top and bottom edges faded into the dark blue.
    The shark finishes about 6vh + 1.09 x the screen width down. */
+/* absolute, not fixed: iPhone Safari won't blend the GIFs with a fixed layer */
 .home-picture {
-  position: fixed;
+  position: absolute;
   top: 6vh;
   left: 50%;
   width: min(100vw, 430px);
@@ -55,10 +56,12 @@ html:has(.home-screen) body::after {
 }
 
 /* Rewards take turns under the shark. Clear and sharp: the GIF's dark
-   background drops out (lighten blend) so the gold sits straight on the water,
-   the frame lines are trimmed off and only the very edges fade. */
+   background drops out (lighten blend) so the gold sits straight on the water
+   and the frame lines are trimmed off. No masks — iPhone Safari stops
+   blending when a mask is on the same element. */
 .home-square {
   position: relative;
+  overflow: hidden; /* trims the GIF frame lines (the GIF is scaled up a little) */
   width: max(150px, min(88vw, calc(100dvh - min(109vw, 469px) - 6vh - 70px), 360px));
   aspect-ratio: 1;
 }
@@ -71,14 +74,6 @@ html:has(.home-screen) body::after {
   object-fit: cover;
   transform: scale(1.12);
   mix-blend-mode: lighten;
-  -webkit-mask-image:
-    linear-gradient(to right, transparent, #000 12%, #000 88%, transparent),
-    linear-gradient(to bottom, transparent, #000 4%, #000 92%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent, #000 12%, #000 88%, transparent),
-    linear-gradient(to bottom, transparent, #000 4%, #000 92%, transparent);
-  mask-composite: intersect;
   opacity: 0;
   transition: opacity 0.45s ease;
 }
