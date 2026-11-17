@@ -10,30 +10,48 @@
   mask-image: radial-gradient(circle, #000 52%, transparent 70%);
 }
 
-/* wide table: pot/board column from the top, logo on the left of the felt, name on the right */
+/* wide table: pot, board and chips in one row across the middle of the felt;
+   logo left and name right of your seat, all clear of the players */
 @container table (min-aspect-ratio: 1 / 1) {
   .cs-center {
-    top: 5%;
-    transform: translateX(-50%);
-    width: 40%;
-    gap: clamp(3px, 1.4cqh, 8px);
+    top: 52%;
+    transform: translate(-50%, -50%);
+    width: 66%;
+    flex-direction: row;
+    justify-content: center;
+    gap: clamp(8px, 2cqw, 28px);
+  }
+  .cs-pot-box {
+    min-width: 0;
+  }
+  .cs-card {
+    width: min(5cqw, 12cqh, 70px);
+  }
+  .cs-board {
+    min-height: calc(min(5cqw, 12cqh, 70px) * 1.4);
   }
   .cs-chips {
-    height: clamp(16px, 9cqh, 44px);
+    height: clamp(20px, 12cqh, 48px);
   }
-  .cs-chip-count {
-    display: none;
+  .cs-info {
+    text-align: left;
+  }
+  .cs-seat {
+    --av: clamp(36px, 14cqh, 64px);
+  }
+  .cs-seat.dense {
+    --av: clamp(32px, 12cqh, 56px);
   }
   .cs-table::before {
-    left: 28%;
-    top: 50%;
-    width: min(32cqh, 16cqw, 200px);
-    opacity: 0.3;
+    left: 31%;
+    top: 78%;
+    width: min(28cqh, 12cqw, 180px);
+    opacity: 0.35;
   }
   .cs-table::after {
-    left: 72%;
-    top: 50%;
-    font-size: clamp(12px, 7cqh, 44px);
+    left: 69%;
+    top: 78%;
+    font-size: clamp(12px, 6.5cqh, 40px);
   }
 }
 
