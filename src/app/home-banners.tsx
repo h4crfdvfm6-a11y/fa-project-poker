@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { BrandMark } from "./brand-mark";
+import "./home.css";
 
-/**
- * Home page reward tiles. Each one plays the MP4 if it is in public/banners/,
- * otherwise the GIF; any that are missing stay hidden.
- */
+/** Full-screen Shark Club picture (upload to public/banners/ on GitHub). */
+const HOME_PICTURE = "/banners/shark-club-home.webp";
+
+/** Reward tiles: the MP4 is used if present, otherwise the GIF. */
 const BANNERS = [
   {
     alt: "Bad Beat Jackpot",
@@ -18,64 +21,121 @@ const BANNERS = [
   },
 ];
 
-async function firstThatExists(files: string[]) {
-  for (const f of files) {
-    try {
-      const r = await fetch(f, { method: "HEAD" });
-      if (r.ok) return f;
-    } catch {
-      // try the next one
-    }
+/** How long each reward stays on screen before the next one. */
+const SLIDE_MS = 4000;
+
+async function exists(url: string) {
+  try {
+    const r = await fetch(url, { method: "HEAD" });
+    return r.ok;
+  } catch {
+    return false;
   }
+}
+
+async function firstThatExists(files: string[]) {
+  for (const f of files) if (await exists(f)) return f;
   return null;
 }
 
-export function HomeBanners() {
-  const [found, setFound] = useState<Array<{ alt: string; src: string }>>([]);
+type Slide = { alt: string; src: string };
+
+function RewardSquare({ slides }: { slides: Slide[] }) {
+  const [active, setActive] = useState(0);
+  const videos = useRef<Array<HTMLVideoElement | null>>([]);
+
+  // Move to the next reward every few seconds, looping.
+  useEffect(() => {
+    if (slides.length < 2) return;
+    const t = setInterval(() => setActive((i) => (i + 1) % slides.length), SLIDE_MS);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  // Videos restart from the beginning each time they come on screen.
+  useEffect(() => {
+    const v = videos.current[active];
+    if (v) {
+      v.currentTime = 0;
+      void v.play().catch(() => undefined);
+    }
+  }, [active]);
+
+  return (
+    <div className="home-square" aria-label="Club rewards">
+      {slides.map((s, i) =>
+        s.src.endsWith(".mp4") ? (
+          <video
+            key={s.src}
+            ref={(el) => {
+              videos.current[i] = el;
+            }}
+            src={s.src}
+            aria-label={s.alt}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className={i === active ? "on" : ""}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={s.src}
+            src={s.src}
+            alt={s.alt}
+            loading="eager"
+            className={i === active ? "on" : ""}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+export function HomeScreen() {
+  const [picture, setPicture] = useState<boolean | null>(null);
+  const [slides, setSlides] = useState<Slide[]>([]);
 
   useEffect(() => {
     let cancelled = false;
+    void exists(HOME_PICTURE).then((ok) => {
+      if (!cancelled) setPicture(ok);
+    });
     Promise.all(
       BANNERS.map(async (b) => {
         const src = await firstThatExists(b.files);
         return src ? { alt: b.alt, src } : null;
       }),
     ).then((list) => {
-      if (!cancelled) setFound(list.filter((x): x is { alt: string; src: string } => Boolean(x)));
+      if (!cancelled) setSlides(list.filter((x): x is Slide => Boolean(x)));
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!found.length) return null;
-
-  const tile =
-    "aspect-square w-[78%] shrink-0 snap-center rounded-2xl border border-[var(--line)] object-cover shadow-[0_10px_30px_rgba(0,0,0,.35)]";
-
   return (
-    <section
-      className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1"
-      style={{ scrollbarWidth: "none" }}
-      aria-label="Club rewards"
-    >
-      {found.map((b) =>
-        b.src.endsWith(".mp4") ? (
-          <video
-            key={b.src}
-            src={b.src}
-            aria-label={b.alt}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className={tile}
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={b.src} src={b.src} alt={b.alt} className={tile} />
-        ),
-      )}
-    </section>
+    <main className="home-screen">
+      {picture ? (
+        <div className="home-picture" style={{ backgroundImage: `url("${HOME_PICTURE}")` }} />
+      ) : picture === false ? (
+        <div className="home-fallback-brand">
+          <BrandMark size={48} />
+        </div>
+      ) : null}
+
+      <div className="home-bottom">
+        {slides.length ? <RewardSquare slides={slides} /> : null}
+        <div className="home-buttons">
+          <Link href="/lobby" className="btn btn-gold">
+            Enter club lobby
+          </Link>
+          <Link href="/admin" className="btn btn-ghost">
+            Club admin
+          </Link>
+        </div>
+      </div>
+    </main>
   );
 }
