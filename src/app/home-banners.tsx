@@ -42,6 +42,9 @@ const BANNERS = [
   },
 ];
 
+/** Reward GIFs under the shark — switched off at the user's request. */
+const SHOW_REWARDS = false;
+
 /** How long each reward stays on screen before the next one. */
 const SLIDE_MS = 4000;
 
@@ -127,7 +130,7 @@ export function HomeScreen() {
     void exists(HOME_VIDEO).then((ok) => {
       if (!cancelled) setVideo(ok);
     });
-    Promise.all(
+    if (SHOW_REWARDS) Promise.all(
       BANNERS.map(async (b) => {
         const src = await firstThatExists(b.files);
         return src ? { alt: b.alt, src } : null;
@@ -162,7 +165,7 @@ export function HomeScreen() {
       ) : null}
 
       <div className="home-bottom">
-        {slides.length ? <RewardSquare slides={slides} /> : null}
+        {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
         <div className="home-buttons">
           <Link href="/lobby" className="btn btn-gold">
             Enter club lobby
