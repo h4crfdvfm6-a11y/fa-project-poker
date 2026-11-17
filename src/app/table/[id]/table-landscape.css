@@ -138,22 +138,37 @@
   display: none;
 }
 
-/* Shark Club logo + name, printed on the felt under the blinds line.
+/* "SHARK CLUB" printed on the felt right under the flop, bright gold.
    Part of the centre column, so it can never sit under cards, chips or seats. */
 .cs-center::after {
   content: "SHARK CLUB";
   display: block;
-  padding-left: 1.55em;
+  order: 3;
   white-space: nowrap;
   font-family: var(--font-logo), "Cinzel", Georgia, serif;
   font-weight: 900;
-  font-size: clamp(12px, 4.4cqw, 20px);
+  font-size: clamp(13px, 4.8cqw, 22px);
   line-height: 1.3em;
-  letter-spacing: 0.1em;
-  color: #f6c74a;
-  /* the gold shark from the logo, cut out (see-through) */
-  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAABACAMAAABxwuT6AAAAkFBMVEUAAAD331369JD49+76zjX27Zn6+XLv5p/RqDH29Kz//QF5bAqqn1+kZR7Vs0rOsVaPbCHl0G+wjzGulVXvrWKVbxt2UgurjTK1jSZTMQ+YaA6gYVuymkx8eHK2sinIqGCyoZT5fwXlr56srO3/AAD/f3/loRnYzXgVFfTEpzvQstYAAFW3mUb//9AAAJkA///nSaTXAAAAMHRSTlMA+OwL/J8CWewUARMUEuKeXaSbWA2XUGnrIeIOnQYIXxMCFQYBAgRsA6cMA9tnBQEQ6OcIAAAEQ0lEQVR42p1XiXbiOBDslnzJlm8bA+YKkMkkM7v7/3+31bIhwIQJRs+P56tcrVZ1tSD6YySURsz+fxRrmj4aqjhjBaiZDk4oibgola+fIRdqpq3yQ6LJ6BdKPA6pViBPgumhI2U/qWPlE71OhAYS9xa/4D5MjTylmrkE6jfQu2Aaek2WPaYNLZg5p9hMgce7deTxliwVQG9xx+pH8bpxzCUFDeU48UNRS/MIv8biGOXiDdZ6Xc2ReRU6pPkGL9nRIbDzNtkHAT60mBUV1KrCUI/P77EiPq19xdXs5kmRKWRe8IH9mjUQVt/PC7k6GBPiYhihXiS5Ejzgx318C7W4Y0KlynT4hEx7HErhALs7EcVD/lesAvUBra0RpLrADuMNb9XuTKKPg+sMl6x4hRCV78AndOQODJnD6Utgt2ctg3UMUAn2IuY8Zwi9Gp5+xlEaiseItf95O1+talsUM4xiVnQplx2/5xJCVXVF21ZVFEUDOZl41ARGtuqS2zyGikom5vfi4iaWPoICZcL/yATzT1xgg75P3dg0oTW8MdwNS+DXbpIksq3kjuJsvlwS7d2yhuFOKvhUCFCNtbSvaSfO4mb7QfQBECKpf2MGEcDtkFJV4l23cKdCXLujsVTnFi942Q4SVNlMIpgVbbXtUrtlz/NYwhv0LcgRvx5C7cm+9e9D1rsx+lFf7EUAF6Rl/ST7Tsh0qiNtUCUNhS68yrmN/EhaAtwV4koCPkgG3ZoPhdAY04w0Bgs2b6/lqbUWrBcJr8GE5vOlK2PF4Zk5DMO6LoqFXMRXbinheF5HabAvo+WywGgdHtkFCksC6dY2OZXBpWfpQSRoNHRol0U/mij0FI11xauFC6BPjtciMmMeMjj8sWnx+RfkIYVqdb3KBs3CHPQ6/sIEXvUgz1xcIp+j3QxdJ6kzNxt4kut/Xw1Db8ytzA6nOutie26XxVzWwOOWftxtLiU+7cAB+dycKxWXyTISeDcs6xemRzuOliRF19OBuY4/HW5D1ML+ub7xnQviN16maInSG3ZSLJvLrkWz+V/AlsoKyVhkEvcOOe8v9wPHF0HnZO+ZNR4k0lWlow9Jv95l4Lt/67NQR5xIYXzI1JtbdLLaU3yPenhlJmgB8/56H5R8vy96ofZsguaW+/t9zK9RyZ5swqbuwWKaiRZFFSokM20f9COGF3GUOe5QXGjS5g2G6kEvUg+uH8bBhLDBGUnddtHgQjjdPwr+KU2FAifPZuVc5FHiI43ggA5hee6HOn4s6pM4dSlZh8zRD7Jcrx/i/lfAerDhbOWMku5V8lcJA7MYWtTS5P0q1ig3ghW/6+N4EhhlkZWSNIqTicwbEoUBP7vrd/cH2qDLcvsEFuNXJuJePJrhPyYtrfKZP1RwuVp6dGyfAWOlM85S6p8CG2wQs4SSp8DHGDb7LBh+0HF6apPTE77IarJPgl+pr+lB8/kfk7EzIR35qvEAAAAASUVORK5CYII=") left center / auto 1.3em no-repeat;
-  opacity: 0.6;
+  letter-spacing: 0.12em;
+  color: #ffd34d;
+  text-shadow: 0 0 10px rgba(255, 200, 60, 0.55), 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+/* centre column order: pot, flop, SHARK CLUB, then chips / count / blinds */
+.cs-center > * {
+  order: 4;
+}
+.cs-center > .cs-pot-box {
+  order: 1;
+}
+.cs-center > .cs-board {
+  order: 2;
+}
+
+/* cards without white borders (face cards and the blue Shark Club backs) */
+.cs-card,
+.cs-card.back {
+  border: none;
 }
 
 /* short phones (iPhone SE etc.): slightly smaller seats and centre so nothing touches */
