@@ -11,16 +11,33 @@ const HOME_PICTURES = [
   "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
 ];
 
-/** Reward tiles: the MP4 is used if present, otherwise the GIF. */
+/** Moving-water version of the picture (shark and title stay still). */
+const HOME_VIDEO = "/banners/home-water.mp4";
+
+/**
+ * Reward tiles, best first: see-through animated WebP (no background at all,
+ * works on every phone), then MP4, then the original GIF.
+ */
 const BANNERS = [
   {
     alt: "Bad Beat Jackpot",
-    files: ["/banners/bad-beat-jackpot.mp4", "/banners/Bad_Beat_Jackpot.gif"],
+    files: [
+      "/banners/bad-beat-jackpot.webp",
+      "/banners/bad-beat-jackpot.mp4",
+      "/banners/Bad_Beat_Jackpot.gif",
+    ],
   },
-  { alt: "High Hand", files: ["/banners/high-hand.mp4", "/banners/High_Hand.gif"] },
+  {
+    alt: "High Hand",
+    files: ["/banners/high-hand.webp", "/banners/high-hand.mp4", "/banners/High_Hand.gif"],
+  },
   {
     alt: "Hand of the Day",
-    files: ["/banners/hand-of-the-day.mp4", "/banners/Hand_of_the_Day.gif"],
+    files: [
+      "/banners/hand-of-the-day.webp",
+      "/banners/hand-of-the-day.mp4",
+      "/banners/Hand_of_the_Day.gif",
+    ],
   },
 ];
 
@@ -88,7 +105,7 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
             src={s.src}
             alt={s.alt}
             loading="eager"
-            className={i === active ? "on" : ""}
+            className={`${i === active ? "on" : ""} ${s.src.endsWith(".webp") ? "clear" : ""}`}
           />
         ),
       )}
@@ -98,12 +115,16 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
 
 export function HomeScreen() {
   const [picture, setPicture] = useState<string | false | null>(null);
+  const [video, setVideo] = useState(false);
   const [slides, setSlides] = useState<Slide[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void firstThatExists(HOME_PICTURES).then((src) => {
       if (!cancelled) setPicture(src ?? false);
+    });
+    void exists(HOME_VIDEO).then((ok) => {
+      if (!cancelled) setVideo(ok);
     });
     Promise.all(
       BANNERS.map(async (b) => {
@@ -120,7 +141,18 @@ export function HomeScreen() {
 
   return (
     <main className="home-screen">
-      {picture ? (
+      {picture && video ? (
+        <video
+          className="home-picture"
+          src={HOME_VIDEO}
+          poster={picture}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+        />
+      ) : picture ? (
         <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
       ) : picture === false ? (
         <div className="home-fallback-brand">
