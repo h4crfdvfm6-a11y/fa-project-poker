@@ -53,10 +53,11 @@ export function seatPoint(slot: number, count: number): SeatPoint {
  */
 export function betPoint(slot: number, count: number): { x: number; y: number } {
   const p = seatPoint(slot, count);
-  if (slot === 0) return { x: 50, y: 78.5 };
-  if (p.side === "left") return { x: p.x + 17, y: p.y + 7.5 };
-  if (p.side === "right") return { x: p.x - 17, y: p.y + 7.5 };
-  return { x: p.x, y: p.y + 12.5 };
+  if (slot === 0) return { x: 50, y: 76.5 };
+  if (p.y < 30) return { x: p.x, y: p.y + 13.5 }; // top seats: under the name box
+  const inward = p.x < 50 ? 1 : -1;
+  if (p.y > 80) return { x: p.x + inward * 20, y: p.y - 11 }; // lower corners: up and in
+  return { x: p.x + inward * 20, y: p.y + 5 }; // sides: beside the name box
 }
 
 const CHIP_COLORS = ["purple", "black", "green", "blue", "red", "orange"] as const;

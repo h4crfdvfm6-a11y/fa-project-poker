@@ -82,6 +82,11 @@
   font-weight: 800;
 }
 
+/* the pot amount is already in the TOTAL POT box: keep just the chips under the flop */
+.cs-center > .cs-chip-count {
+  display: none;
+}
+
 /* your cards bigger */
 .cs-hero-cards .cs-card {
   width: min(17cqw, 100px);
@@ -256,6 +261,9 @@
   }
   .cs-room .cs-center::after {
     font-size: 11px;
+  }
+  .cs-room .cs-bet {
+    transform: translate(-50%, -50%) scale(0.85);
   }
 }
 
