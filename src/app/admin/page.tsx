@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { BrandMark } from "../brand-mark";
 
 type Overview = {
   club: { name: string; invite_code: string };
@@ -236,9 +237,9 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-10 pt-[max(28px,env(safe-area-inset-top))]">
-        <Link href="/" className="brand mb-8 text-xl text-[var(--gold-strong)]">
-          FA Poker
-        </Link>
+        <div className="mb-8">
+          <BrandMark size={44} />
+        </div>
         <form onSubmit={login} className="panel p-5">
           <h1 className="brand mb-2 text-3xl">Admin</h1>
           <p className="mb-5 text-sm text-[var(--muted)]">
@@ -267,7 +268,10 @@ export default function AdminPage() {
     <main className="mx-auto min-h-dvh max-w-lg px-5 pb-16 pt-[max(20px,env(safe-area-inset-top))]">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <div className="brand text-xl text-[var(--gold-strong)]">FA Poker Admin</div>
+          <BrandMark size={36} />
+          <div className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold-strong)]">
+            Club admin
+          </div>
           <p className="text-sm text-[var(--muted)]">
             Invite {overview?.club.invite_code}
           </p>
