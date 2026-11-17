@@ -28,6 +28,13 @@
   gap: 6px;
 }
 
+/* one seat size for every table (the compact one), so seats never touch the pot or flop */
+.cs-seat,
+.cs-seat.dense {
+  --av: clamp(36px, 11cqw, 56px);
+  width: clamp(62px, 18.5cqw, 104px);
+}
+
 /* smaller TOTAL POT box */
 .cs-pot-box {
   min-width: 0;
