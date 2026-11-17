@@ -5,10 +5,48 @@
  *  - a phone turned sideways shows "turn your phone upright"
  */
 
-/* soften the logo so it reads as printed on the felt */
-.cs-table::before {
-  -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 70%);
-  mask-image: radial-gradient(circle, #000 52%, transparent 70%);
+/*
+ * The table box follows the table in the photo. The photo fills the screen
+ * height, so the box is set in screen-height units: its top is 6.4% down and
+ * it is 73.2% tall, which puts the seats (table-layout.ts) on the padded rail
+ * and the pot/cards in the middle of the green felt, on every phone.
+ */
+.cs-table {
+  top: 6.4dvh;
+  width: min(43.5dvh, 94vw, 430px);
+  height: 73.2dvh;
+  min-height: 0;
+  max-height: none;
+}
+
+/* pot, board, chips and info sit in the middle of the felt */
+.cs-center {
+  top: 58.6%;
+  width: 50%;
+}
+
+/* old big logo + name on the felt: replaced by the small brand line below */
+.cs-table::before,
+.cs-table::after {
+  display: none;
+}
+
+/* Shark Club logo + name, printed on the felt under the blinds line.
+   Part of the centre column, so it can never sit under cards, chips or seats. */
+.cs-center::after {
+  content: "SHARK CLUB";
+  display: block;
+  padding-left: 1.55em;
+  white-space: nowrap;
+  font-family: var(--font-logo), "Cinzel", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(12px, 4.4cqw, 20px);
+  line-height: 1.3em;
+  letter-spacing: 0.1em;
+  color: #f6c74a;
+  background: var(--cs-card-logo) left center / 1.3em 1.3em no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0.55;
 }
 
 /* computers / tablets: the phone layout in a centred phone-sized column */
@@ -40,13 +78,13 @@
   .cs-table {
     left: 50%;
     transform: translateX(-50%);
-    top: 54px;
+    top: 6.4dvh;
     bottom: auto;
-    width: 94%;
+    width: min(43.5dvh, 94%);
     max-width: none;
-    height: calc(100dvh - 226px);
-    min-height: 500px;
-    max-height: 640px;
+    height: 73.2dvh;
+    min-height: 0;
+    max-height: none;
   }
   .cs-controls {
     left: 50%;
