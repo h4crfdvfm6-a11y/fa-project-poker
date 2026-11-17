@@ -4,6 +4,8 @@
  * sits bottom-centre; everyone else is spread evenly around the oval.
  */
 
+import "./table-landscape.css";
+
 export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" };
 
 const CX = 50;
