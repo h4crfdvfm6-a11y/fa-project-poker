@@ -6,10 +6,32 @@ function audio(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
     ctx ??= new AudioContext();
+    // Phones start audio "suspended" until the player taps — wake it up.
+    if (ctx.state === "suspended") void ctx.resume();
     return ctx;
   } catch {
     return null;
   }
+}
+
+// Unlock sound on the first tap anywhere (iPhone/Android block audio until then).
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    const a = audio();
+    if (a) {
+      const o = a.createOscillator();
+      const g = a.createGain();
+      g.gain.value = 0;
+      o.connect(g);
+      g.connect(a.destination);
+      o.start();
+      o.stop(a.currentTime + 0.01);
+    }
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("touchend", unlock);
+  };
+  window.addEventListener("pointerdown", unlock);
+  window.addEventListener("touchend", unlock);
 }
 
 export type SoundKind =
