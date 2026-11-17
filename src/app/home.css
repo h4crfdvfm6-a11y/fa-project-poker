@@ -32,7 +32,7 @@ html:has(.home-screen) body::after {
   aspect-ratio: 1184 / 2096;
   transform: translateX(-50%);
   z-index: 0;
-  background: transparent center top / 100% 100% no-repeat;
+  background: transparent center top / cover no-repeat;
   object-fit: cover;
   display: block;
   -webkit-mask-image: linear-gradient(transparent 0, #000 9%, #000 94%, transparent 100%);

@@ -6,9 +6,10 @@
  * video (home-water.mp4) is in public/banners/ it plays instead, so the water
  * moves here too. Gold sparkles twinkle on top.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./lobby-water.css";
 
+const LOBBY_GIF = "/banners/lobby-background.gif";
 const PICTURE = "/banners/913264387_1634729197943554_7988411377112276360_n.jpg";
 const VIDEO = "/banners/home-water.mp4";
 
@@ -26,10 +27,24 @@ const SPARKLES = [
 ];
 
 export function LobbyWater() {
+  // Your own lobby GIF wins if it's uploaded; otherwise the home picture/video.
+  const [gif, setGif] = useState<boolean | null>(null);
   const [videoOk, setVideoOk] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(LOBBY_GIF, { method: "HEAD" })
+      .then((r) => !cancelled && setGif(r.ok))
+      .catch(() => !cancelled && setGif(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (gif === null) return <div className="lobby-water" aria-hidden />;
   return (
     <div className="lobby-water" aria-hidden>
-      {videoOk ? (
+      {gif ? (
+        <div className="lw-hero" style={{ backgroundImage: `url("${LOBBY_GIF}")` }} />
+      ) : videoOk ? (
         <video
           className="lw-hero"
           src={VIDEO}

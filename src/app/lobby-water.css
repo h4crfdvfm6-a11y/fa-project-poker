@@ -31,7 +31,7 @@ html:has(.lobby-water) body::after {
   transform: translateX(-50%);
   display: block;
   object-fit: cover;
-  background: transparent center top / 100% 100% no-repeat;
+  background: transparent center top / cover no-repeat;
   -webkit-mask-image: linear-gradient(transparent 0, #000 9%, #000 94%, transparent 100%);
   mask-image: linear-gradient(transparent 0, #000 9%, #000 94%, transparent 100%);
 }
