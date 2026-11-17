@@ -7,6 +7,7 @@ import "./home.css";
 
 /** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
 const HOME_PICTURES = [
+  "/banners/home-background.gif",
   "/banners/shark-club-home.webp",
   "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
 ];
@@ -141,7 +142,7 @@ export function HomeScreen() {
 
   return (
     <main className="home-screen">
-      {picture && video ? (
+      {picture && video && !picture.endsWith(".gif") ? (
         <video
           className="home-picture"
           src={HOME_VIDEO}
