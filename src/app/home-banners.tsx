@@ -117,6 +117,30 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
   );
 }
 
+/**
+ * iPhone only autoplays a video if it is muted *as an attribute* when it
+ * starts (React only sets the property), and Low Power Mode blocks autoplay
+ * until the first tap. So: force muted, try to play, and try again on the
+ * first touch.
+ */
+function startOnIphone(v: HTMLVideoElement | null) {
+  if (!v) return;
+  v.muted = true;
+  v.defaultMuted = true;
+  v.setAttribute("muted", "");
+  v.setAttribute("playsinline", "");
+  v.setAttribute("webkit-playsinline", "");
+  const play = () => void v.play().catch(() => undefined);
+  play();
+  const onTouch = () => {
+    play();
+    window.removeEventListener("touchstart", onTouch);
+    window.removeEventListener("click", onTouch);
+  };
+  window.addEventListener("touchstart", onTouch, { passive: true });
+  window.addEventListener("click", onTouch);
+}
+
 export function HomeScreen() {
   const [picture, setPicture] = useState<string | false | null>(null);
   const [video, setVideo] = useState(false);
@@ -147,6 +171,7 @@ export function HomeScreen() {
     <main className="home-screen">
       {picture && video && !picture.endsWith(".gif") ? (
         <video
+          ref={startOnIphone}
           className="home-picture"
           src={HOME_VIDEO}
           poster={picture}
