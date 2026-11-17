@@ -1,0 +1,70 @@
+/*
+ * Shark Club table — fixes loaded after table-skin.css.
+ * Landscape screens (phone sideways, laptop, desktop) use the landscape table photo,
+ * stretched to the screen so the seats always sit on the photo's table.
+ */
+
+/* soften the logo so it reads as printed on the felt */
+.cs-table::before {
+  -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 70%);
+  mask-image: radial-gradient(circle, #000 52%, transparent 70%);
+}
+
+/* wide table: pot/board column from the top, logo on the left of the felt, name on the right */
+@container table (min-aspect-ratio: 1 / 1) {
+  .cs-center {
+    top: 5%;
+    transform: translateX(-50%);
+    width: 40%;
+    gap: clamp(3px, 1.4cqh, 8px);
+  }
+  .cs-chips {
+    height: clamp(16px, 9cqh, 44px);
+  }
+  .cs-chip-count {
+    display: none;
+  }
+  .cs-table::before {
+    left: 28%;
+    top: 50%;
+    width: min(32cqh, 16cqw, 200px);
+    opacity: 0.3;
+  }
+  .cs-table::after {
+    left: 72%;
+    top: 50%;
+    font-size: clamp(12px, 7cqh, 44px);
+  }
+}
+
+@media (orientation: landscape) {
+  .cs-room {
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.08)),
+      var(--cs-bg-landscape) center / 100% 100% no-repeat,
+      #000;
+  }
+  .cs-table {
+    left: 10.4%;
+    transform: none;
+    top: 39vh;
+    bottom: auto;
+    width: 79.2vw;
+    max-width: none;
+    height: 42vh;
+    min-height: 0;
+    max-height: none;
+  }
+  .cs-controls {
+    width: min(80vw, 1080px);
+    bottom: max(6px, env(safe-area-inset-bottom));
+  }
+}
+
+/* short landscape screens (phones sideways): one-row controls */
+@media (orientation: landscape) and (max-height: 540px) {
+  .cs-controls {
+    width: min(94vw, 800px);
+    bottom: max(3px, env(safe-area-inset-bottom));
+  }
+}
