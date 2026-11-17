@@ -16,7 +16,7 @@ export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" }
  */
 type Spot = [number, number];
 const HERO: Spot = [50, 94.6];
-const L_LOW: Spot = [11, 89];
+const L_LOW: Spot = [11, 87];
 const L_MID: Spot = [11, 66];
 const L_UP: Spot = [11, 40];
 const T_LEFT: Spot = [33, 24];
@@ -24,7 +24,7 @@ const T_MID: Spot = [50, 22.6];
 const T_RIGHT: Spot = [67, 24];
 const R_UP: Spot = [89, 40];
 const R_MID: Spot = [89, 66];
-const R_LOW: Spot = [89, 89];
+const R_LOW: Spot = [89, 87];
 
 /** The other players' spots, clockwise from your left, for each table size. */
 const LAYOUTS: Record<number, Spot[]> = {
