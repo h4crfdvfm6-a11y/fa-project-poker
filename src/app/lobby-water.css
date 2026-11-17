@@ -40,6 +40,15 @@ html:has(.lobby-water) body::after {
   animation: lwDriftB 19s ease-in-out infinite alternate;
 }
 
+/* the moving-water video sits over the still layers once it has loaded */
+.lw-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* keep the middle darker so the table list is easy to read */
 .lw-shade {
   position: absolute;
