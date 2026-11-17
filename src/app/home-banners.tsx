@@ -5,8 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./brand-mark";
 import "./home.css";
 
-/** Full-screen Shark Club picture (upload to public/banners/ on GitHub). */
-const HOME_PICTURE = "/banners/shark-club-home.webp";
+/** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
+const HOME_PICTURES = [
+  "/banners/shark-club-home.webp",
+  "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
+];
 
 /** Reward tiles: the MP4 is used if present, otherwise the GIF. */
 const BANNERS = [
@@ -94,13 +97,13 @@ function RewardSquare({ slides }: { slides: Slide[] }) {
 }
 
 export function HomeScreen() {
-  const [picture, setPicture] = useState<boolean | null>(null);
+  const [picture, setPicture] = useState<string | false | null>(null);
   const [slides, setSlides] = useState<Slide[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    void exists(HOME_PICTURE).then((ok) => {
-      if (!cancelled) setPicture(ok);
+    void firstThatExists(HOME_PICTURES).then((src) => {
+      if (!cancelled) setPicture(src ?? false);
     });
     Promise.all(
       BANNERS.map(async (b) => {
@@ -118,7 +121,7 @@ export function HomeScreen() {
   return (
     <main className="home-screen">
       {picture ? (
-        <div className="home-picture" style={{ backgroundImage: `url("${HOME_PICTURE}")` }} />
+        <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
       ) : picture === false ? (
         <div className="home-fallback-brand">
           <BrandMark size={48} />
