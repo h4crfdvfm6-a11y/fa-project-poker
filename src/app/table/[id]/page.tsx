@@ -123,6 +123,8 @@ type TableView = {
   };
   phase: string;
   version: number;
+  /** test mode: bots fill the table; you can tap SIT even mid-hand */
+  botFill?: boolean;
   bbjp: {
     balance: number;
     enabled: boolean;
@@ -284,7 +286,7 @@ export default function TablePage() {
     view.hand.street === "waiting" ||
     view.hand.street === "showdown";
   const canLeave = seated && betweenHands;
-  const canSit = !seated && betweenHands;
+  const canSit = !seated && (betweenHands || Boolean(view?.botFill));
 
   async function sit(seat: number) {
     if (isDemo) {
