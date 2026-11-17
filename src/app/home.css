@@ -10,8 +10,8 @@
   overflow: hidden;
 }
 
-/* The picture fills the phone screen; its name sits at the top and the shark
-   finishes about 62% of the way down. */
+/* The picture fills the phone width; its name sits at the top and the shark
+   finishes about 1.09 x the screen width down. */
 .home-picture {
   position: fixed;
   top: 0;
@@ -20,7 +20,9 @@
   width: min(100vw, 430px);
   transform: translateX(-50%);
   z-index: 0;
-  background: #071a5c center top / cover no-repeat;
+  /* full width so SHARK CLUB is never cut off; the picture's own dark blue
+     continues below it */
+  background: #08143a center top / 100% auto no-repeat;
 }
 
 .home-fallback-brand {
@@ -44,7 +46,8 @@
 /* One square, rewards take turns in it */
 .home-square {
   position: relative;
-  width: max(150px, min(78vw, calc(37dvh - 84px), 330px));
+  /* as big as fits between the shark (ends ~1.09 x screen width down) and the buttons */
+  width: max(150px, min(80vw, calc(100dvh - min(109vw, 469px) - 92px), 330px));
   aspect-ratio: 1;
   border-radius: 18px;
   overflow: hidden;
