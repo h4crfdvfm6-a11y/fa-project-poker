@@ -56,3 +56,11 @@ html:has(.lobby-water) body::after {
     animation: none;
   }
 }
+
+/* Table boxes: the front page's dark blue (#08143a), see-through so the water shows */
+html:has(.lobby-water) article.panel {
+  background: rgba(8, 20, 58, 0.5);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border-color: rgba(255, 255, 255, 0.14);
+}
