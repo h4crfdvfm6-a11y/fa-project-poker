@@ -106,6 +106,9 @@
 .cs-hero-cards .cs-card + .cs-card {
   margin-left: calc(min(16cqw, 96px) * -0.28);
 }
+.cs-hero .cs-plate {
+  min-width: min(28cqw, 170px);
+}
 
 /* table info in quiet text at the top of the middle (like "Hold'em, 200 / 500") */
 .cs-center > .cs-info {
