@@ -12,6 +12,12 @@ const AWAY_SECONDS = 60;
 let ready: Promise<void> | null = null;
 export function ensurePresenceSchema() {
   ready ??= (async () => {
+    // only alter when something is missing: ALTER TABLE locks the whole table
+    const [have] = await sql<{ n: string | number }>(
+      `select count(*) as n from information_schema.columns
+       where table_name = 'table_seats' and column_name in ('last_seen_at', 'leave_requested')`,
+    );
+    if (Number(have?.n ?? 0) >= 2) return;
     await sql(`alter table table_seats add column if not exists last_seen_at timestamptz`);
     await sql(
       `alter table table_seats add column if not exists leave_requested boolean not null default false`,

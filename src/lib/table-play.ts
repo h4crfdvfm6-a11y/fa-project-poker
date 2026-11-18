@@ -1,4 +1,6 @@
 import { sql, withTransaction } from "./db";
+import { applyStraddles } from "./poker/straddle";
+import { straddleOptions } from "./straddle-settings";
 import { id } from "./ids";
 import { ensureTablePlaySchema } from "./table-schema";
 import {
@@ -959,7 +961,11 @@ async function beginNextHand(tableId: string) {
     : 0;
   // Squid and Cucurucho don't stack on the same hand.
   const squidAnte = squidEnabled && !cucuruchoNow ? num(table.bb) : 0;
-  const state = startHand(
+  // cash tables: straddles / Mississippi straddle the players ticked
+  const straddles = isTournament
+    ? null
+    : await straddleOptions(tableId).catch(() => null);
+  const dealt = startHand(
     seats
       .filter((s) => s.member_id)
       .map((s) => ({
@@ -984,6 +990,7 @@ async function beginNextHand(tableId: string) {
       cucuruchoAnte,
     },
   );
+  const state = straddles ? applyStraddles(dealt, straddles) : dealt;
 
   const phase =
     state.street === "waiting"

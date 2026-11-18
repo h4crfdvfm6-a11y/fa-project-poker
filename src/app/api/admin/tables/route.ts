@@ -2,6 +2,7 @@ import { closeTable, createTable, listTables } from "@/lib/club";
 import { deleteTable } from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/session";
 import { assertSameOrigin } from "@/lib/csrf";
+import { setTableStraddle } from "@/lib/straddle-settings";
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -32,6 +33,8 @@ export async function POST(request: Request) {
     cucuruchoEnabled?: boolean;
     cucuruchoAnteBb?: number;
     cucuruchoEveryHands?: number;
+    straddleEnabled?: boolean;
+    mississippiEnabled?: boolean;
   };
   try {
     const table = await createTable({
@@ -52,13 +55,37 @@ export async function POST(request: Request) {
       cucuruchoAnteBb: Number(body.cucuruchoAnteBb ?? 5),
       cucuruchoEveryHands: Number(body.cucuruchoEveryHands ?? 1),
     });
-    return Response.json({ table });
+    const straddle = await setTableStraddle(table.id, {
+      straddle: Boolean(body.straddleEnabled),
+      mississippi: Boolean(body.mississippiEnabled),
+    });
+    return Response.json({ table: { ...table, straddle_enabled: straddle.straddle, mississippi_enabled: straddle.mississippi } });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed" },
       { status: 400 },
     );
   }
+}
+
+/** Switch straddles / Mississippi straddle on or off for an existing cash table. */
+export async function PATCH(request: Request) {
+  const csrf = assertSameOrigin(request);
+  if (csrf) return csrf;
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  const body = (await request.json().catch(() => ({}))) as {
+    id?: string;
+    straddleEnabled?: unknown;
+    mississippiEnabled?: unknown;
+  };
+  if (!body.id) return Response.json({ error: "id required" }, { status: 400 });
+  const flags = await setTableStraddle(body.id, {
+    straddle: typeof body.straddleEnabled === "boolean" ? body.straddleEnabled : undefined,
+    mississippi:
+      typeof body.mississippiEnabled === "boolean" ? body.mississippiEnabled : undefined,
+  });
+  return Response.json(flags);
 }
 
 export async function DELETE(request: Request) {

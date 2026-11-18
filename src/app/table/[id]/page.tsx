@@ -133,6 +133,12 @@ type TableView = {
   version: number;
   /** test mode: bots fill the table; you can tap SIT even mid-hand */
   botFill?: boolean;
+  /** cash tables: straddles the admin allows here, and what you've ticked */
+  straddle?: null | {
+    straddle: boolean;
+    mississippi: boolean;
+    mine: { straddle: boolean; mississippi: boolean };
+  };
   bbjp: {
     balance: number;
     enabled: boolean;
@@ -158,6 +164,9 @@ const SKIN_VARS = {
   "--cs-bg-landscape": asset("landscape-casino.jpg"),
   "--cs-card-logo": 'url("/brand/logo.jpg")',
 } as CSSProperties;
+
+/** gold edge for a ticked menu option */
+const TICKED: CSSProperties = { borderColor: "#ffd34d", color: "#ffd34d", fontWeight: 800 };
 
 const SUITS: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
@@ -439,6 +448,25 @@ export default function TablePage() {
     setBusy(false);
     if (!res.ok) {
       setError(json.error || "Could not show cards");
+      return;
+    }
+    await load();
+  }
+
+  /** tick / untick Straddle or Mississippi (applies from the next hand) */
+  async function setStraddleTick(flags: { straddle?: boolean; mississippi?: boolean }) {
+    if (isDemo) return;
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/table/${tableId}/straddle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(flags),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(json.error || "Could not change straddle");
       return;
     }
     await load();
@@ -1165,6 +1193,40 @@ export default function TablePage() {
                       {e}
                     </button>
                   ))}
+                </div>
+              </>
+            ) : null}
+
+            {seated && (view.straddle?.straddle || view.straddle?.mississippi) ? (
+              <>
+                <h3>Straddle (from the next hand)</h3>
+                <div className="cs-sheet-row">
+                  {view.straddle?.straddle ? (
+                    <button
+                      type="button"
+                      className="cs-sheet-btn"
+                      style={view.straddle.mine.straddle ? TICKED : undefined}
+                      disabled={busy}
+                      onClick={() =>
+                        void setStraddleTick({ straddle: !view.straddle!.mine.straddle })
+                      }
+                    >
+                      {view.straddle.mine.straddle ? "☑" : "☐"} Straddle
+                    </button>
+                  ) : null}
+                  {view.straddle?.mississippi ? (
+                    <button
+                      type="button"
+                      className="cs-sheet-btn"
+                      style={view.straddle.mine.mississippi ? TICKED : undefined}
+                      disabled={busy}
+                      onClick={() =>
+                        void setStraddleTick({ mississippi: !view.straddle!.mine.mississippi })
+                      }
+                    >
+                      {view.straddle.mine.mississippi ? "☑" : "☐"} Mississippi
+                    </button>
+                  ) : null}
                 </div>
               </>
             ) : null}

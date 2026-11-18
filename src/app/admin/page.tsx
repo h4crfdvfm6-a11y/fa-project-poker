@@ -42,6 +42,9 @@ type Table = {
   cucurucho_enabled?: boolean;
   cucurucho_ante_bb?: string | number;
   cucurucho_every_hands?: number;
+  format?: string;
+  straddle_enabled?: boolean;
+  mississippi_enabled?: boolean;
   status: string;
 };
 
@@ -87,6 +90,8 @@ export default function AdminPage() {
     rakeCapBb: "3",
     bbjpEnabled: true,
     isPrivate: false,
+    straddleEnabled: false,
+    mississippiEnabled: false,
   });
 
   const [bbjpAmount, setBbjpAmount] = useState("1000");
@@ -198,6 +203,8 @@ export default function AdminPage() {
         rakeCapBb: Number(tableForm.rakeCapBb),
         bbjpEnabled: tableForm.bbjpEnabled,
         isPrivate: tableForm.isPrivate,
+        straddleEnabled: tableForm.straddleEnabled,
+        mississippiEnabled: tableForm.mississippiEnabled,
       }),
     });
     const json = await res.json();
@@ -224,6 +231,24 @@ export default function AdminPage() {
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
       setError(json.error || "Could not update table");
+    }
+    await refresh();
+  }
+
+  /** Switch straddles / Mississippi straddle on or off for a cash table. */
+  async function setStraddle(
+    id: string,
+    flags: { straddleEnabled?: boolean; mississippiEnabled?: boolean },
+  ) {
+    setError("");
+    const res = await fetch("/api/admin/tables", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, ...flags }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError(json.error || "Could not update straddles");
     }
     await refresh();
   }
@@ -593,6 +618,28 @@ export default function AdminPage() {
                 BBJP on this table
               </label>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={tableForm.straddleEnabled}
+                  onChange={(e) =>
+                    setTableForm((s) => ({ ...s, straddleEnabled: e.target.checked }))
+                  }
+                />
+                Straddles (unlimited, in turn)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={tableForm.mississippiEnabled}
+                  onChange={(e) =>
+                    setTableForm((s) => ({ ...s, mississippiEnabled: e.target.checked }))
+                  }
+                />
+                Mississippi straddle
+              </label>
+            </div>
             <button className="btn btn-gold" type="submit">
               Create table with rake
             </button>
@@ -618,7 +665,31 @@ export default function AdminPage() {
                   {t.cucurucho_enabled
                     ? ` · Cucurucho ${t.cucurucho_ante_bb || 5}BB / ${t.cucurucho_every_hands || 1}h`
                     : ""}
+                  {t.straddle_enabled ? " · Straddles" : ""}
+                  {t.mississippi_enabled ? " · Mississippi" : ""}
                 </p>
+                {t.format !== "tournament" && t.status === "open" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={`btn !py-2 !text-sm ${t.straddle_enabled ? "btn-gold" : "btn-ghost"}`}
+                      onClick={() =>
+                        void setStraddle(t.id, { straddleEnabled: !t.straddle_enabled })
+                      }
+                    >
+                      Straddles {t.straddle_enabled ? "ON" : "OFF"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn !py-2 !text-sm ${t.mississippi_enabled ? "btn-gold" : "btn-ghost"}`}
+                      onClick={() =>
+                        void setStraddle(t.id, { mississippiEnabled: !t.mississippi_enabled })
+                      }
+                    >
+                      Mississippi {t.mississippi_enabled ? "ON" : "OFF"}
+                    </button>
+                  </div>
+                ) : null}
                 <div className="mt-3 flex gap-2">
                   {t.status === "open" ? (
                     <button
