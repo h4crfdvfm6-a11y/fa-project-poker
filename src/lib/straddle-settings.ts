@@ -13,6 +13,13 @@ import type { StraddleOptions } from "./poker/straddle";
 let ready: Promise<void> | null = null;
 export function ensureStraddleSchema() {
   ready ??= (async () => {
+    // only alter when something is missing: ALTER TABLE locks the whole table
+    const [have] = await sql<{ n: string | number }>(
+      `select count(*) as n from information_schema.columns
+       where (table_name = 'cash_tables' and column_name in ('straddle_enabled', 'mississippi_enabled'))
+          or (table_name = 'table_seats' and column_name in ('straddle_for', 'mississippi_for'))`,
+    );
+    if (Number(have?.n ?? 0) >= 4) return;
     await sql(
       `alter table cash_tables add column if not exists straddle_enabled boolean not null default false`,
     );
