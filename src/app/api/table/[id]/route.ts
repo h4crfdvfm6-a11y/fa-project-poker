@@ -1,4 +1,5 @@
 import { actionMsLeft, enforceActionTimeout } from "@/lib/action-timeout";
+import { markSeen, processPendingLeaves } from "@/lib/seat-presence";
 import { getTableView } from "@/lib/table-play";
 import { manageTestBots, TEST_BOTS } from "@/lib/test-bots";
 import { getPlayerId, isAdmin } from "@/lib/session";
@@ -11,8 +12,11 @@ export async function GET(
   try {
     const playerId = await getPlayerId();
     const admin = await isAdmin();
+    // the viewer is here; players who went to the lobby or away are taken off
+    if (playerId) await markSeen(id, playerId).catch(() => undefined);
     // a player who walked away is checked/folded after 30 seconds
     await enforceActionTimeout(id).catch(() => undefined);
+    await processPendingLeaves(id).catch(() => undefined);
     // test mode: bots keep the table full and free a seat for anyone joining
     await manageTestBots(id, playerId).catch(() => undefined);
     const view = await getTableView(id, playerId, {

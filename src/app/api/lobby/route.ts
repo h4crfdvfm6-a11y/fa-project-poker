@@ -7,6 +7,7 @@ import {
 } from "@/lib/club";
 import { getPlayerId } from "@/lib/session";
 import { sql } from "@/lib/db";
+import { leaveAllTables } from "@/lib/seat-presence";
 
 export async function GET() {
   const overview = await getOverview();
@@ -25,6 +26,10 @@ export async function GET() {
     );
     // a player the admin removed is treated as not in the club
     me = rows[0] && rows[0].status !== "removed" ? rows[0] : null;
+    // back in the lobby = off any cash table; chips go back to the balance
+    await leaveAllTables(playerId).catch(() => undefined);
+    const fresh = await sql("select chip_balance from members where id = $1", [playerId]);
+    if (me && fresh[0]) me = { ...me, chip_balance: fresh[0].chip_balance };
     myTournamentIds = await listMyTournamentIds(playerId);
   }
   return Response.json({

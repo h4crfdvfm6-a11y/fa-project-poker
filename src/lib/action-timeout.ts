@@ -1,5 +1,6 @@
 import { sql } from "./db";
 import type { EngineState } from "./poker/engine";
+import { wantsToLeave } from "./seat-presence";
 import { legalActions, playerAction } from "./table-play";
 
 /** A player who doesn't act within this time is checked (if free) or folded. */
@@ -18,13 +19,19 @@ export async function enforceActionTimeout(tableId: string) {
     [tableId],
   );
   if (!row || !row.state_json || row.state_json === "{}") return;
-  if (Number(row.idle_ms ?? 0) < ACTION_TIMEOUT_MS) return;
 
   const state = JSON.parse(row.state_json) as EngineState & { dealRound?: unknown };
   if ("dealRound" in state) return; // OFC tables have their own flow
   if (state.toAct == null || state.street === "showdown" || state.street === "waiting") return;
   const actor = state.seats.find((s) => s.seat === state.toAct);
   if (!actor || actor.isBot || !actor.memberId) return;
+  // a player who went back to the lobby is acted for straight away
+  if (
+    Number(row.idle_ms ?? 0) < ACTION_TIMEOUT_MS &&
+    !(await wantsToLeave(tableId, actor.memberId).catch(() => false))
+  ) {
+    return;
+  }
 
   const legal = legalActions(state, actor.seat);
   const type = legal.actions.some((a) => a.type === "check") ? "check" : "fold";

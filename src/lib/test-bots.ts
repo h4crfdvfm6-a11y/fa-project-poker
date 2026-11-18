@@ -76,6 +76,15 @@ export async function manageTestBots(tableId: string, viewerId: string | null) {
     if (!empty.length) {
       const bot = [...seats].reverse().find((s) => s.is_bot && s.member_id);
       if (bot?.member_id) await leaveTable(tableId, bot.member_id).catch(() => undefined);
+    } else {
+      // every game type gets bots: fill all the empty seats but one (for the viewer)
+      for (const s of empty.slice(1)) {
+        try {
+          await addBot(tableId, s.seat_no);
+        } catch {
+          break; // hand started or no chips left in the bot float
+        }
+      }
     }
     return;
   }
