@@ -6,25 +6,31 @@
 
 import "./table-landscape.css";
 
-export type SeatPoint = { x: number; y: number; side: "left" | "right" | "top" };
+export type SeatPoint = {
+  x: number;
+  y: number;
+  side: "left" | "right" | "top";
+  /** CSS `left` for the seat: on the rail, but never past the edge of the screen */
+  left: string;
+};
 
 /*
- * Seat spots on the padded rail of the table in the photo, as % of the table
+ * Seat spots ON the padded rail of the table in the photo, as % of the table
  * box (table-landscape.css sizes the box from the photo). Laid out like the
- * owner's drawing: you at the bottom middle, two seats on the top edge, and
- * three down each side (upper corner, middle, lower corner).
+ * owner's drawing and mock-up: you at the bottom middle, two seats on the top
+ * rail, three down each side rail (upper corner, middle, lower corner).
  */
 type Spot = [number, number];
 const HERO: Spot = [50, 94.6];
-const L_LOW: Spot = [9, 87];
-const L_MID: Spot = [9, 66];
-const L_UP: Spot = [9, 40];
-const T_LEFT: Spot = [33, 24];
-const T_MID: Spot = [50, 22.6];
-const T_RIGHT: Spot = [67, 24];
-const R_UP: Spot = [91, 40];
-const R_MID: Spot = [91, 66];
-const R_LOW: Spot = [91, 87];
+const L_LOW: Spot = [6.5, 85];
+const L_MID: Spot = [2.5, 65.5];
+const L_UP: Spot = [4, 34.5];
+const T_LEFT: Spot = [32, 20];
+const T_MID: Spot = [50, 19];
+const T_RIGHT: Spot = [68, 20];
+const R_UP: Spot = [96, 34.5];
+const R_MID: Spot = [97.5, 65.5];
+const R_LOW: Spot = [93.5, 85];
 
 /** The other players' spots, clockwise from your left, for each table size. */
 const LAYOUTS: Record<number, Spot[]> = {
@@ -38,26 +44,48 @@ const LAYOUTS: Record<number, Spot[]> = {
   9: [L_LOW, L_MID, L_UP, T_LEFT, T_RIGHT, R_UP, R_MID, R_LOW],
 };
 
+/**
+ * Side seats sit right on the rail; on phones where the rail runs almost to
+ * the screen edge they stop just inside it (--seat-min / --seat-max are set in
+ * table-landscape.css from the screen and table widths).
+ */
+function edgeLeft(x: number): string {
+  if (x < 20) return `max(${x}%, var(--seat-min))`;
+  if (x > 80) return `min(${x}%, var(--seat-max))`;
+  return `${x}%`;
+}
+
 /** Point for seat `slot` (0 = bottom centre, you) at a table with `count` seats. */
 export function seatPoint(slot: number, count: number): SeatPoint {
   const n = Math.min(9, Math.max(2, count));
   const [x, y] = slot === 0 ? HERO : (LAYOUTS[n]![(slot - 1) % (n - 1)] ?? T_MID);
   const side = x < 42 ? "left" : x > 58 ? "right" : "top";
-  return { x, y, side };
+  return { x, y, side, left: edgeLeft(x) };
 }
 
+export type BetPoint = {
+  left: string;
+  top: number;
+  /** which side of the bet touches `left`: the seat edge for side seats */
+  anchor: "center" | "from-left" | "from-right";
+};
+
 /**
- * Where a player's bet (chip + amount) sits: in front of them, towards the
- * middle of the table — beside the name box for side seats, under it for the
- * top seats, and just above your cards for you.
+ * Where a player's bet (chip + amount) sits: on the felt right next to them —
+ * under the name box for the top seats, right beside the name box for the side
+ * seats (starting at the box edge, whatever the seat size), and just above
+ * your cards for you — so each bet is clearly that player's.
  */
-export function betPoint(slot: number, count: number): { x: number; y: number } {
+export function betPoint(slot: number, count: number): BetPoint {
   const p = seatPoint(slot, count);
-  if (slot === 0) return { x: 50, y: 76.5 };
-  if (p.y < 30) return { x: p.x, y: p.y + 13.5 }; // top seats: under the name box
-  const inward = p.x < 50 ? 1 : -1;
-  if (p.y > 80) return { x: p.x + inward * 20, y: p.y - 11 }; // lower corners: up and in
-  return { x: p.x + inward * 20, y: p.y + 5 }; // sides: beside the name box
+  if (slot === 0) return { left: "50%", top: 76.5, anchor: "center" };
+  if (p.y < 30) return { left: p.left, top: p.y + 12.5, anchor: "center" };
+  const fromLeft = p.x < 50;
+  return {
+    left: `calc(${p.left} ${fromLeft ? "+" : "-"} (var(--seat-half) - 1px))`,
+    top: p.y + 6,
+    anchor: fromLeft ? "from-left" : "from-right",
+  };
 }
 
 const CHIP_COLORS = ["purple", "black", "green", "blue", "red", "orange"] as const;
