@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { leaveTable } from "./table-play";
+import { getTableView, leaveTable } from "./table-play";
 
 /**
  * Players leave cash tables when they go back to the lobby (or sit somewhere
@@ -42,9 +42,36 @@ async function resetEmptySeats(tableId: string) {
   );
 }
 
-/** Leave now if between hands, otherwise as soon as this hand ends. */
-export async function requestLeave(tableId: string, memberId: string) {
-  await ensurePresenceSchema();
+async function isBetweenHands(tableId: string) {
+  const [r] = await sql<{ state_json: string }>(
+    `select state_json from table_runtime where table_id = $1`,
+    [tableId],
+  );
+  if (!r?.state_json || r.state_json === "{}") return true;
+  const street = (JSON.parse(r.state_json) as { street?: string }).street;
+  return !street || street === "waiting" || street === "showdown";
+}
+
+/**
+ * Finish the hand that's running at a table nobody may be watching: the
+ * leaving player is checked/folded at once and the bots play out the rest.
+ * Without this a bots-only table would stay frozen mid-hand (tables only move
+ * when someone looks at them) and the player's chips would never come back.
+ */
+async function playOutHand(tableId: string, maxMs = 10_000) {
+  const { enforceActionTimeout } = await import("./action-timeout");
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (await isBetweenHands(tableId)) return true;
+    await enforceActionTimeout(tableId).catch(() => undefined);
+    if (await isBetweenHands(tableId)) return true;
+    await getTableView(tableId, null, { advance: true }).catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return isBetweenHands(tableId);
+}
+
+async function tryLeave(tableId: string, memberId: string) {
   try {
     await leaveTable(tableId, memberId);
     await resetEmptySeats(tableId);
@@ -52,12 +79,24 @@ export async function requestLeave(tableId: string, memberId: string) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Not seated")) return "not-seated" as const;
-    await sql(
-      `update table_seats set leave_requested = true where table_id = $1 and member_id = $2`,
-      [tableId, memberId],
-    );
-    return "after-hand" as const;
+    return null;
   }
+}
+
+/** Leave now: between hands straight away, mid-hand once that hand is played out. */
+export async function requestLeave(tableId: string, memberId: string) {
+  await ensurePresenceSchema();
+  const now = await tryLeave(tableId, memberId);
+  if (now) return now;
+  await sql(
+    `update table_seats set leave_requested = true where table_id = $1 and member_id = $2`,
+    [tableId, memberId],
+  );
+  if (await playOutHand(tableId)) {
+    const after = await tryLeave(tableId, memberId);
+    if (after) return after;
+  }
+  return "after-hand" as const;
 }
 
 /** Cash tables (not tournaments) this player is sitting at. */
