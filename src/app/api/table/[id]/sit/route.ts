@@ -4,6 +4,7 @@ import { manageTestBots, waitForBetweenHands } from "@/lib/test-bots";
 import { isRemoved } from "@/lib/admin-actions";
 import { getPlayerId } from "@/lib/session";
 import { assertSameOrigin } from "@/lib/csrf";
+import { sql } from "@/lib/db";
 
 export async function POST(
   request: Request,
@@ -24,17 +25,23 @@ export async function POST(
     buyIn?: number;
   };
   try {
+    // one cash table at a time: leaving the others brings those chips back
+    // (done first: it can take a few seconds if a hand is running there)
+    await leaveAllTables(playerId, id).catch(() => undefined);
     // test mode: wait for the bots' hand to finish, make sure a seat is free
     await waitForBetweenHands(id);
     await manageTestBots(id, playerId).catch(() => undefined);
-    // one cash table at a time: leaving the others brings those chips back
-    await leaveAllTables(playerId, id).catch(() => undefined);
-    const view = await sitAtTable(
-      id,
-      playerId,
-      Number(body.seat ?? 0),
-      Number(body.buyIn ?? 0),
+    // the seat you tapped may have been taken by a bot meanwhile: use a free one
+    let seatNo = Number(body.seat ?? 0);
+    const seats = await sql<{ seat_no: number; member_id: string | null }>(
+      `select seat_no, member_id from table_seats where table_id = $1 order by seat_no`,
+      [id],
     );
+    if (seats.find((s) => s.seat_no === seatNo)?.member_id) {
+      const free = seats.find((s) => !s.member_id);
+      if (free) seatNo = free.seat_no;
+    }
+    const view = await sitAtTable(id, playerId, seatNo, Number(body.buyIn ?? 0));
     await markSeen(id, playerId).catch(() => undefined);
     return Response.json(view);
   } catch (error) {
