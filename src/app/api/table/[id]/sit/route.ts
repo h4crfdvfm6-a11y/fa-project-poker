@@ -1,3 +1,4 @@
+import { chipsOnOtherTable, leaveAllTables, markSeen } from "@/lib/seat-presence";
 import { sitAtTable } from "@/lib/table-play";
 import { manageTestBots, waitForBetweenHands } from "@/lib/test-bots";
 import { isRemoved } from "@/lib/admin-actions";
@@ -26,17 +27,21 @@ export async function POST(
     // test mode: wait for the bots' hand to finish, make sure a seat is free
     await waitForBetweenHands(id);
     await manageTestBots(id, playerId).catch(() => undefined);
+    // one cash table at a time: leaving the others brings those chips back
+    await leaveAllTables(playerId, id).catch(() => undefined);
     const view = await sitAtTable(
       id,
       playerId,
       Number(body.seat ?? 0),
       Number(body.buyIn ?? 0),
     );
+    await markSeen(id, playerId).catch(() => undefined);
     return Response.json(view);
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Failed" },
-      { status: 400 },
-    );
+    let message = error instanceof Error ? error.message : "Failed";
+    if (message === "Not enough club chips" && (await chipsOnOtherTable(playerId, id).catch(() => false))) {
+      message = "Your chips are still on your other table — they come back as soon as that hand ends. Try again in a moment.";
+    }
+    return Response.json({ error: message }, { status: 400 });
   }
 }
