@@ -432,10 +432,10 @@
 .cs-hero-cards .cs-hero-card:last-child { transform: rotate(6deg) translateX(-8%); }
 .cs-hero-cards.n4 .cs-card { width: min(13cqw, 78px); }
 .cs-hero-cards.n4 .cs-hero-card + .cs-hero-card { margin-left: calc(min(13cqw, 78px) * -0.3); }
-.cs-hero-cards.n5 .cs-card { width: min(11.5cqw, 70px); }
-.cs-hero-cards.n5 .cs-hero-card + .cs-hero-card { margin-left: calc(min(11.5cqw, 70px) * -0.32); }
-.cs-hero-cards.n6 .cs-card { width: min(10.5cqw, 64px); }
-.cs-hero-cards.n6 .cs-hero-card + .cs-hero-card { margin-left: calc(min(10.5cqw, 64px) * -0.34); }
+.cs-hero-cards.n5 .cs-card { width: min(10cqw, 62px); }
+.cs-hero-cards.n5 .cs-hero-card + .cs-hero-card { margin-left: calc(min(10cqw, 62px) * -0.32); }
+.cs-hero-cards.n6 .cs-card { width: min(9cqw, 56px); }
+.cs-hero-cards.n6 .cs-hero-card + .cs-hero-card { margin-left: calc(min(9cqw, 56px) * -0.34); }
 /* a card you chose to show: lifted with a gold edge */
 .cs-hero-card.shown { translate: 0 -6px; }
 .cs-hero-card.shown .cs-card { box-shadow: 0 0 0 2px #ffd34d, 0 4px 9px #0008; }
