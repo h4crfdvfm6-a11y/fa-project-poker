@@ -481,3 +481,57 @@
   font-size: 14px !important;
 }
 .cs-show-all.on { border-color: #ffd34d; }
+
+/* ---------- bigger bet slider on the right ---------- */
+.cs-room .cs-controls {
+  grid-template-columns: 1fr 64px;
+}
+.cs-room .cs-vslider {
+  margin-top: -48px; /* reaches a little above the buttons for a longer track */
+  padding: 6px 0;
+  border-radius: 18px;
+}
+.cs-room .cs-round {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  font-weight: 900;
+}
+.cs-room .cs-vtrack {
+  width: 100%;
+}
+.cs-room .cs-vtrack input {
+  width: 68px;
+  height: 34px;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.cs-room .cs-vtrack input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.cs-room .cs-vtrack input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.cs-room .cs-vtrack input::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.cs-room .cs-vtrack input::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
