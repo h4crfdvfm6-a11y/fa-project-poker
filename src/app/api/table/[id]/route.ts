@@ -1,6 +1,7 @@
 import { actionMsLeft, enforceActionTimeout } from "@/lib/action-timeout";
 import { applyShownCards } from "@/lib/hand-shows";
 import { markSeen, processPendingLeaves } from "@/lib/seat-presence";
+import { straddleView } from "@/lib/straddle-settings";
 import { getTableView } from "@/lib/table-play";
 import { manageTestBots, TEST_BOTS } from "@/lib/test-bots";
 import { getPlayerId, isAdmin } from "@/lib/session";
@@ -29,7 +30,9 @@ export async function GET(
     );
     // time left for the player to act (drives the ring around their name box)
     const msLeft = await actionMsLeft(id).catch(() => null);
-    return Response.json({ ...view, botFill: TEST_BOTS, actionMsLeft: msLeft });
+    // straddle settings for this table and your ticks
+    const straddle = await straddleView(id, playerId).catch(() => null);
+    return Response.json({ ...view, botFill: TEST_BOTS, actionMsLeft: msLeft, straddle });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed" },
