@@ -17,12 +17,17 @@
   height: 73.2dvh;
   min-height: 0;
   max-height: none;
+  /* side seats sit on the rail but never past the screen edge (used by table-layout.ts) */
+  --room-w: 100vw;
+  --seat-half: calc(clamp(66px, 20cqw, 110px) / 2 + 3px);
+  --seat-min: calc(var(--seat-half) - (var(--room-w) - 100%) / 2);
+  --seat-max: calc(100% - var(--seat-half) + (var(--room-w) - 100%) / 2);
 }
 
 /* pot, board, chips and info: a column on the felt that starts just under the
    top seats (owner's drawing: small TOTAL POT, then a big flop) */
 .cs-center {
-  top: 40.6%;
+  top: 37%;
   transform: translate(-50%, 0);
   width: 62%;
   gap: 6px;
@@ -72,8 +77,15 @@
   background: var(--chip) center / 100% 100% no-repeat;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
+/* side seats: the bet starts right at the edge of the name box */
+.cs-bet.from-left {
+  transform: translate(0, -50%);
+}
+.cs-bet.from-right {
+  transform: translate(-100%, -50%);
+}
 .cs-bet span {
-  padding: 1px 9px 2px;
+  padding: 1px clamp(6px, 2cqw, 9px) 2px;
   border-radius: 10px;
   background: rgba(5, 22, 13, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -87,16 +99,22 @@
   display: none;
 }
 
-/* your cards bigger */
+/* your cards bigger, held a little closer together */
 .cs-hero-cards .cs-card {
-  width: min(17cqw, 100px);
+  width: min(16cqw, 96px);
+}
+.cs-hero-cards .cs-card + .cs-card {
+  margin-left: calc(min(16cqw, 96px) * -0.28);
+}
+.cs-hero .cs-plate {
+  min-width: min(28cqw, 170px);
 }
 
 /* table info in quiet text at the top of the middle (like "Hold'em, 200 / 500") */
 .cs-center > .cs-info {
   order: 0;
   color: rgba(255, 255, 255, 0.5);
-  font-size: clamp(10px, 3cqw, 13px);
+  font-size: clamp(9px, 2.7cqw, 13px);
   font-weight: 700;
   text-shadow: none;
 }
@@ -118,10 +136,15 @@
 /* bigger flop / turn / river cards, still inside the felt */
 .cs-board {
   gap: clamp(3px, 0.9cqw, 6px);
-  min-height: calc(min(11cqw, 52px) * 1.4);
+  min-height: calc(min(14cqw, 62px) * 1.4);
 }
 .cs-board .cs-card {
-  width: min(11cqw, 52px);
+  width: min(14cqw, 62px);
+}
+
+/* pot chips sit right under SHARK CLUB, close to the flop */
+.cs-center > .cs-chips {
+  height: clamp(18px, 4.5cqh, 30px);
 }
 
 /* ---------- gold blink: premium hands and the cards of a made hand ---------- */
@@ -244,8 +267,11 @@
 @media (max-height: 760px) {
   .cs-room .cs-seat,
   .cs-room .cs-seat.dense {
-    --av: 38px;
-    width: 62px;
+    --av: 44px;
+    width: 66px;
+  }
+  .cs-room .cs-table {
+    --seat-half: 36px;
   }
   .cs-room .cs-seat .cs-plate {
     padding: 2px 6px 3px;
@@ -256,14 +282,22 @@
   .cs-room .cs-pot-box {
     padding: 0.3em 1em 0.35em;
   }
-  .cs-room .cs-chips {
-    height: 22px;
+  .cs-room .cs-center > .cs-chips {
+    height: 18px;
   }
   .cs-room .cs-center::after {
-    font-size: 11px;
+    font-size: 13px;
   }
   .cs-room .cs-bet {
     transform: translate(-50%, -50%) scale(0.85);
+  }
+  .cs-room .cs-bet.from-left {
+    transform: translate(0, -50%) scale(0.85);
+    transform-origin: left center;
+  }
+  .cs-room .cs-bet.from-right {
+    transform: translate(-100%, -50%) scale(0.85);
+    transform-origin: right center;
   }
 }
 
@@ -294,6 +328,7 @@
     font-size: 11px;
   }
   .cs-table {
+    --room-w: min(100vw, 430px);
     left: 50%;
     transform: translateX(-50%);
     top: 6.4dvh;

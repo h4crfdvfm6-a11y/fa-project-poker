@@ -741,7 +741,7 @@ export default function TablePage() {
         {view.seats.map((seat) => {
           if (seated && seat.seat === view.meSeat) return null;
           const p = seatPoint(slotOf(seat.seat), seatCount);
-          const style = { left: `${p.x}%`, top: `${p.y}%` };
+          const style = { left: p.left, top: `${p.y}%` };
           const live = handSeats.find((s) => s.seat === seat.seat);
           const win = winnerOf(seat.seat);
           const rx = reactionOf(seat.seat);
@@ -816,8 +816,8 @@ export default function TablePage() {
             return (
               <div
                 key={`bet-${s.seat}`}
-                className="cs-bet"
-                style={{ left: `${b.x}%`, top: `${b.y}%` }}
+                className={`cs-bet ${b.anchor}`}
+                style={{ left: b.left, top: `${b.top}%` }}
               >
                 <i style={{ "--chip": asset(`chip-${chip}.png`) } as CSSProperties} />
                 <span>{fmt(s.bet)}</span>
