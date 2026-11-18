@@ -407,3 +407,77 @@
     background: #05060a;
   }
 }
+
+/* ---------- Omaha: 4–6 cards shrink and overlap so they stay on the screen ---------- */
+.cs-seat .cs-seat-cards.n4 .cs-card { width: calc(var(--av) * 0.4); }
+.cs-seat .cs-seat-cards.n4 .cs-card + .cs-card { margin-left: calc(var(--av) * -0.18); }
+.cs-seat .cs-seat-cards.n5 .cs-card { width: calc(var(--av) * 0.36); }
+.cs-seat .cs-seat-cards.n5 .cs-card + .cs-card { margin-left: calc(var(--av) * -0.19); }
+.cs-seat .cs-seat-cards.n6 .cs-card { width: calc(var(--av) * 0.34); }
+.cs-seat .cs-seat-cards.n6 .cs-card + .cs-card { margin-left: calc(var(--av) * -0.2); }
+/* side seats near the screen edge: keep the fan from sliding off */
+.cs-seat .cs-seat-cards.n4,
+.cs-seat .cs-seat-cards.n5,
+.cs-seat .cs-seat-cards.n6 {
+  display: flex;
+  max-width: calc(var(--av) * 1.05);
+}
+
+/* your cards: smaller for Omaha so 4–6 fit under you */
+.cs-hero-card { display: block; flex: 0 0 auto; }
+.cs-hero-cards .cs-hero-card + .cs-hero-card { margin-left: calc(min(16cqw, 96px) * -0.28); }
+.cs-hero .cs-hero-cards .cs-hero-card .cs-card { transform: none; margin-left: 0; }
+/* the slight fan now sits on the wrapper of the first and last card */
+.cs-hero-cards .cs-hero-card:first-child { transform: rotate(-6deg) translateX(8%); }
+.cs-hero-cards .cs-hero-card:last-child { transform: rotate(6deg) translateX(-8%); }
+.cs-hero-cards.n4 .cs-card { width: min(13cqw, 78px); }
+.cs-hero-cards.n4 .cs-hero-card + .cs-hero-card { margin-left: calc(min(13cqw, 78px) * -0.3); }
+.cs-hero-cards.n5 .cs-card { width: min(10cqw, 62px); }
+.cs-hero-cards.n5 .cs-hero-card + .cs-hero-card { margin-left: calc(min(10cqw, 62px) * -0.32); }
+.cs-hero-cards.n6 .cs-card { width: min(9cqw, 56px); }
+.cs-hero-cards.n6 .cs-hero-card + .cs-hero-card { margin-left: calc(min(9cqw, 56px) * -0.34); }
+/* a card you chose to show: lifted with a gold edge */
+.cs-hero-card.shown { translate: 0 -6px; }
+.cs-hero-card.shown .cs-card { box-shadow: 0 0 0 2px #ffd34d, 0 4px 9px #0008; }
+
+/* ---------- show your cards after the hand ---------- */
+.cs-show {
+  grid-column: 1;
+  grid-row: 2;
+  flex-wrap: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 54px;
+}
+.cs-show > span {
+  color: #ffd34d;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  margin-right: 2px;
+}
+.cs-show button {
+  height: 46px;
+  min-width: 40px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  font-weight: 900;
+  font-size: 17px;
+  box-shadow: 0 5px 12px #0008;
+}
+.cs-show-card {
+  background: #fff;
+  color: #111;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.cs-show-card.red { color: #c8102e; }
+.cs-show-card.on { border-color: #ffd34d; box-shadow: 0 0 10px rgba(255, 211, 77, 0.8); }
+.cs-show-all {
+  background: linear-gradient(#1f6fd1, #124b93);
+  color: #fff;
+  font-size: 14px !important;
+}
+.cs-show-all.on { border-color: #ffd34d; }

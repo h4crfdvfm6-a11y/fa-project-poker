@@ -113,7 +113,8 @@ const DEMO_NAMES = ["Luna", "Jack", "Max", "Mia", "Nova", "Leo", "Zara", "Kai"];
  * A fake, read-only table for checking the layout: /table/demo?players=2..9
  * Nothing is sent to the server.
  */
-export function demoView(players: number) {
+export function demoView(players: number, cards = 2) {
+  const myCards = ["6c", "Ah", "Kd", "Qs", "Jh", "Tc"].slice(0, Math.max(2, Math.min(6, cards)));
   const n = Math.min(9, Math.max(2, Math.round(players) || 6));
   const seats = Array.from({ length: n }, (_, i) => ({
     seat: i,
@@ -132,7 +133,7 @@ export function demoView(players: number) {
     folded: n > 4 && i === n - 1,
     allIn: n > 5 && i === 2,
     isBot: false,
-    hole: i === 0 ? ["6c", "Ah"] : ["xx", "xx"],
+    hole: i === 0 ? myCards : myCards.map(() => "xx"),
   }));
   return {
     meMemberId: "me",
@@ -148,7 +149,7 @@ export function demoView(players: number) {
       rakePercent: 0,
       rakeCapBb: 0,
       bbjpEnabled: true,
-      gameType: "NLH",
+      gameType: cards >= 4 ? "PLO" : "NLH",
     },
     tournament: null,
     seats,

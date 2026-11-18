@@ -104,6 +104,8 @@ type TableView = {
       allIn: boolean;
       isBot: boolean;
       hole: string[];
+      /** your own cards you chose to show after the hand */
+      shown?: string[];
       ofc?: { front: string[]; middle: string[]; back: string[] };
       fouled?: boolean;
     }>;
@@ -231,8 +233,9 @@ export default function TablePage() {
 
   const load = useCallback(async () => {
     if (isDemo) {
-      const n = Number(new URLSearchParams(window.location.search).get("players")) || 6;
-      setView(demoView(n) as unknown as TableView);
+      const q = new URLSearchParams(window.location.search);
+      const n = Number(q.get("players")) || 6;
+      setView(demoView(n, Number(q.get("cards")) || 2) as unknown as TableView);
       setRaiseTo((prev) => prev || "100");
       return;
     }
@@ -422,6 +425,25 @@ export default function TablePage() {
     setView(json);
   }
 
+  /** choose which of your cards everyone sees after the hand */
+  async function showCards(cards: string[]) {
+    if (isDemo) return;
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/table/${tableId}/show`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cards }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(json.error || "Could not show cards");
+      return;
+    }
+    await load();
+  }
+
   async function ofcAutoSet() {
     if (!view?.hand?.draft?.length || view.meSeat == null) return;
     const draft = view.hand.draft;
@@ -569,6 +591,20 @@ export default function TablePage() {
   const slotOf = (seatNo: number) => (seatNo - baseSeat + seatCount) % seatCount;
 
   const me = handSeats.find((s) => s.seat === view.meSeat);
+  // after your part of the hand is over you can show 1, 2 or all your cards
+  const shownSet = new Set(me?.shown ?? []);
+  const canShow =
+    !isDemo &&
+    hand?.mode !== "ofc" &&
+    Boolean(me?.hole?.length) &&
+    !me!.hole.includes("xx") &&
+    (Boolean(me?.folded) || hand?.street === "showdown");
+  const canPick =
+    !isDemo && hand?.mode !== "ofc" && Boolean(me?.hole?.length) && !me!.hole.includes("xx");
+  const toggleShow = (c: string) =>
+    void showCards(
+      shownSet.has(c) ? [...shownSet].filter((x) => x !== c) : [...shownSet, c],
+    );
   const meSeatInfo = view.seats.find((s) => s.seat === view.meSeat);
   const betsOnTable = handSeats.reduce((sum, s) => sum + (s.bet || 0), 0);
   const totalPot = (hand?.pot ?? 0) + betsOnTable;
@@ -781,11 +817,15 @@ export default function TablePage() {
                 ) : null}
                 {rx ? <div className="cs-reaction">{rx.emoji}</div> : null}
               </div>
-              {live?.hole?.length && !live.folded ? (
-                <div className="cs-seat-cards">
-                  {live.hole.map((c, i) => (
-                    <PlayingCard key={i} card={c} cardBack={view.cosmetics?.cardBack} />
-                  ))}
+              {live?.hole?.length && (!live.folded || live.hole.some((c) => c !== "xx")) ? (
+                // fewer, smaller cards for Omaha (4–6) so they stay on screen;
+                // a folded player only shows the cards they chose to show
+                <div className={`cs-seat-cards n${Math.min(live.hole.length, 6)}`}>
+                  {live.hole
+                    .filter((c) => !live.folded || c !== "xx")
+                    .map((c, i) => (
+                      <PlayingCard key={i} card={c} cardBack={view.cosmetics?.cardBack} />
+                    ))}
                 </div>
               ) : null}
               <div
@@ -831,15 +871,20 @@ export default function TablePage() {
             className={`cs-hero ${me?.folded ? "folded" : ""} ${myTurn ? "active" : ""}`}
           >
             {me?.hole?.length ? (
-              <div className="cs-hero-cards">
+              <div className={`cs-hero-cards n${Math.min(me.hole.length, 6)}`}>
                 {me.hole.map((c, i) => (
-                  <PlayingCard
+                  <div
                     key={`${c}-${i}`}
-                    card={c}
-                    premium={Boolean(view.handStrength?.premium)}
-                    blink={!me?.folded && (preflopPremium || madeCards.has(c))}
-                    cardBack={view.cosmetics?.cardBack}
-                  />
+                    className={`cs-hero-card ${shownSet.has(c) ? "shown" : ""}`}
+                    onClick={canPick ? () => toggleShow(c) : undefined}
+                  >
+                    <PlayingCard
+                      card={c}
+                      premium={Boolean(view.handStrength?.premium)}
+                      blink={!me?.folded && (preflopPremium || madeCards.has(c))}
+                      cardBack={view.cosmetics?.cardBack}
+                    />
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -1006,6 +1051,35 @@ export default function TablePage() {
             </button>
           </div>
 
+          {canShow ? (
+            <div className="cs-show">
+              <span>SHOW</span>
+              {me!.hole.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`cs-show-card ${shownSet.has(c) ? "on" : ""} ${
+                    c[1] === "h" || c[1] === "d" ? "red" : ""
+                  }`}
+                  disabled={busy}
+                  onClick={() => toggleShow(c)}
+                >
+                  {c[0] === "T" ? "10" : c[0]}
+                  {SUITS[c[1]!] || c[1]}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`cs-show-all ${shownSet.size === me!.hole.length ? "on" : ""}`}
+                disabled={busy}
+                onClick={() =>
+                  void showCards(shownSet.size === me!.hole.length ? [] : [...me!.hole])
+                }
+              >
+                {me!.hole.length === 2 ? "BOTH" : "ALL"}
+              </button>
+            </div>
+          ) : (
           <div className="cs-actions">
             <button
               type="button"
@@ -1048,6 +1122,7 @@ export default function TablePage() {
               ALL-IN
             </button>
           </div>
+          )}
         </div>
       )}
 
