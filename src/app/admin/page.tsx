@@ -505,7 +505,15 @@ export default function AdminPage() {
                 <option value="PLO5">Pot-Limit Omaha 5</option>
                 <option value="PLO6">Pot-Limit Omaha 6</option>
                 <option value="PLO_HILO">PLO Hi-Lo</option>
+                <option value="SHORT_DECK">Short Deck (6+) Hold&apos;em</option>
+                <option value="OFC_PINEAPPLE">Open Face Chinese (Pineapple) · max 3</option>
+                <option value="AOF_NLH">All-in or Fold Hold&apos;em</option>
+                <option value="AOF_PLO">All-in or Fold Omaha</option>
+                <option value="BOMB_NLH">Bomb Pot Hold&apos;em</option>
               </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Seats are capped per game: PLO5 7, PLO6 6, OFC 3, others 9.
+              </p>
             </div>
             <div>
               <label className="label">Title (optional)</label>
