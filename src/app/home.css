@@ -20,23 +20,16 @@ html:has(.home-screen) body::after {
   display: none;
 }
 
-/* The picture: full phone width (SHARK CLUB never cut off), a little way down
-   from the top, with its top and bottom edges faded into the dark blue.
-   The shark finishes about 6vh + 1.09 x the screen width down. */
+/* The picture fills the whole phone screen and stays still. The SHARK CLUB
+   sign sits about 2/3 of the way down, well above the buttons. */
 /* absolute, not fixed: iPhone Safari won't blend the GIFs with a fixed layer */
 .home-picture {
   position: absolute;
-  top: 6vh;
-  left: 50%;
-  width: min(100vw, 430px);
-  aspect-ratio: 1184 / 2096;
-  transform: translateX(-50%);
+  inset: 0;
   z-index: 0;
-  background: transparent center top / cover no-repeat;
+  background: transparent center center / cover no-repeat;
   object-fit: cover;
   display: block;
-  -webkit-mask-image: linear-gradient(transparent 0, #000 9%, #000 94%, transparent 100%);
-  mask-image: linear-gradient(transparent 0, #000 9%, #000 94%, transparent 100%);
 }
 
 .home-fallback-brand {
