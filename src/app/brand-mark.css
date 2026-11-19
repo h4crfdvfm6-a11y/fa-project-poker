@@ -11,3 +11,11 @@
   color: transparent;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
 }
+
+/* the owner's logo image in page headers */
+.brand-logo {
+  display: block;
+  max-width: 62vw;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
