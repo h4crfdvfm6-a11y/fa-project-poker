@@ -43,21 +43,6 @@ html:has(.home-screen) body::after {
   mask-image: linear-gradient(transparent 0, transparent 12.5%, #000 13.5%);
 }
 
-/* the shark 22% smaller: a scaled-down copy showing only the shark area,
-   softly blended into the full-size water underneath */
-.home-picture.home-shark {
-  transform: translateX(-50%) scale(0.78);
-  transform-origin: 50% 42%;
-  -webkit-mask-image:
-    linear-gradient(transparent 0, transparent 12.5%, #000 13.5%),
-    radial-gradient(ellipse 62% 36% at 50% 42%, #000 78%, transparent 100%);
-  mask-image:
-    linear-gradient(transparent 0, transparent 12.5%, #000 13.5%),
-    radial-gradient(ellipse 62% 36% at 50% 42%, #000 78%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
-}
-
 /* SHARK CLUB, still, big, in the middle just under the shark */
 .home-name {
   position: absolute;
