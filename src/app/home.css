@@ -20,39 +20,40 @@ html:has(.home-screen) body::after {
   display: none;
 }
 
-/* The picture: full phone width (SHARK CLUB never cut off), a little way down
-   from the top, with its top and bottom edges faded into the dark blue.
-   The shark finishes about 6vh + 1.09 x the screen width down. */
+/* The picture fills the whole phone screen, top to bottom. It is drawn a bit
+   taller than the screen and moved up, so the name printed at the top of the
+   picture/video (it rippled with the water) sits above the screen; the still
+   name below is shown under the shark instead. --hp = picture height. */
+.home-screen {
+  --hp: max(calc(100dvh / 0.87), calc(min(100vw, 430px) * 1.7703));
+}
 /* absolute, not fixed: iPhone Safari won't blend the GIFs with a fixed layer */
 .home-picture {
   position: absolute;
-  top: 6vh;
+  top: calc(var(--hp) * -0.13);
   left: 50%;
-  width: min(100vw, 430px);
+  height: var(--hp);
   aspect-ratio: 1184 / 2096;
   transform: translateX(-50%);
   z-index: 0;
   background: transparent center top / cover no-repeat;
   object-fit: cover;
   display: block;
-  /* the name printed at the top of the picture/video is faded out (it rippled
-     with the water); the still name below is shown under the shark instead */
-  -webkit-mask-image: linear-gradient(transparent 0, transparent 12.5%, #000 17%, #000 94%, transparent 100%);
-  mask-image: linear-gradient(transparent 0, transparent 12.5%, #000 17%, #000 94%, transparent 100%);
+  -webkit-mask-image: linear-gradient(transparent 0, transparent 12.5%, #000 13.5%);
+  mask-image: linear-gradient(transparent 0, transparent 12.5%, #000 13.5%);
 }
 
-/* SHARK CLUB, still, in the middle just under the shark (the shark ends
-   about 62% of the way down the picture) */
+/* SHARK CLUB, still, big, in the middle just under the shark */
 .home-name {
   position: absolute;
   left: 50%;
-  top: calc(6vh + min(100vw, 430px) * 2096 / 1184 * 0.655);
+  top: calc(var(--hp) * 0.525);
   transform: translateX(-50%);
   z-index: 1;
   white-space: nowrap;
   font-family: var(--font-logo), "Cinzel", Georgia, serif;
   font-weight: 700;
-  font-size: min(10.5vw, 46px);
+  font-size: min(12.5vw, 56px);
   letter-spacing: 0.04em;
   line-height: 1;
   background: linear-gradient(180deg, #fff1b0 0%, #f3c64a 45%, #b9861c 100%);
