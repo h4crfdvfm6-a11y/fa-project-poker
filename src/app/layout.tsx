@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cinzel, Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
+import { FELT_INIT_SCRIPT } from "@/lib/felt";
 
 const display = Fraunces({
   variable: "--font-display",
@@ -49,7 +50,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* the player's chosen table felt, set before the page paints */}
+        <script dangerouslySetInnerHTML={{ __html: FELT_INIT_SCRIPT }} />
+      </head>
       <body className={`${display.variable} ${logo.variable} ${body.variable} antialiased`}>
         {children}
       </body>
