@@ -24,8 +24,9 @@ export const metadata: Metadata = {
   description:
     "Private club poker with friends — Texas Hold'em and Omaha, free club chips.",
   icons: {
-    icon: "/brand/icon.jpg",
-    apple: "/brand/icon.jpg",
+    // the owner's app icon (512×512, uploaded to public/banners)
+    icon: "/banners/app-icon.png",
+    apple: "/banners/app-icon.png",
   },
   appleWebApp: {
     capable: true,
