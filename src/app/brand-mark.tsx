@@ -1,7 +1,9 @@
 import Link from "next/link";
 import "./brand-mark.css";
 
-/** Shark Club logo + wordmark (logo-style gold Roman capitals) used in page headers. */
+/** The owner's Shark Club logo (two sharks + SHARK CLUB), used in page headers. */
+export const LOGO_NAME_SRC = "/banners/DC0168CE-18C4-47D0-B074-517A52E173CA.png";
+
 export function BrandMark({
   href = "/",
   label = "Shark Club",
@@ -12,18 +14,14 @@ export function BrandMark({
   size?: number;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-2">
+    <Link href={href} className="flex items-center" aria-label={label}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/logo.jpg"
-        alt=""
-        width={size}
-        height={size}
-        className="rounded-[22%] shadow-[0_0_12px_rgba(246,199,74,.35)]"
+        src={LOGO_NAME_SRC}
+        alt={label}
+        style={{ height: Math.round(size * 1.6), width: "auto" }}
+        className="brand-logo"
       />
-      <span className="brand-wordmark" style={{ fontSize: Math.round(size * 0.56) }}>
-        {label}
-      </span>
     </Link>
   );
 }
