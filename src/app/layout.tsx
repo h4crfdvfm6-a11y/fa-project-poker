@@ -1,10 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { Cinzel, Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 
 const display = Fraunces({
   variable: "--font-display",
   subsets: ["latin"],
+});
+
+/** Matches the Card Sharks / Shark Club logo lettering (classic Roman capitals). */
+const logo = Cinzel({
+  variable: "--font-logo",
+  subsets: ["latin"],
+  weight: ["700", "900"],
 });
 
 const body = Manrope({
@@ -15,10 +22,11 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "Shark Club – Poker Simulator",
   description:
-    "Free club poker for Android & iPhone — tables, rake, tournaments, BBJP, admin.",
+    "Private club poker with friends — Texas Hold'em and Omaha, free club chips.",
   icons: {
-    icon: "/brand/icon.jpg",
-    apple: "/brand/icon.jpg",
+    // the owner's app icon (512×512, uploaded to public/banners)
+    icon: "/banners/app-icon.png",
+    apple: "/banners/app-icon.png",
   },
   appleWebApp: {
     capable: true,
@@ -28,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#10069f",
+  themeColor: "#08143a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -42,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} antialiased`}>
+      <body className={`${display.variable} ${logo.variable} ${body.variable} antialiased`}>
         {children}
       </body>
     </html>
