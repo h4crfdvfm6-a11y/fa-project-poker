@@ -1,6 +1,6 @@
 /**
  * Table sounds. The real recorded sounds from the original F.A Poker table
- * (poker chips, card deal, table knock — served by /sounds/[name]) are played
+ * (poker chips, card deal, table knock — the app's own files in /banners) are played
  * through Web Audio; tiny beeps are only a fallback while they load.
  */
 
@@ -66,9 +66,10 @@ export function setSoundsMuted(muted: boolean) {
 
 /* ---------- recorded sounds from the original table ---------- */
 const SAMPLE_FILES = {
-  chips: "/sounds/poker-chips.mp3",
-  deal: "/sounds/card-deal.mp3",
-  knock: "/sounds/check-knock.mp3",
+  // the app's own copies (uploaded by the owner), no longer the prototype site
+  chips: "/banners/poker-chips.mp3",
+  deal: "/banners/card-deal.mp3",
+  knock: "/banners/check-knock.mp3",
 } as const;
 type Sample = keyof typeof SAMPLE_FILES;
 const buffers: Partial<Record<Sample, AudioBuffer>> = {};
