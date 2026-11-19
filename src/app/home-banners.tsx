@@ -174,7 +174,7 @@ export function HomeScreen() {
       {picture && video && !picture.endsWith(".gif") ? (
         <video
           ref={startOnIphone}
-          className="home-picture"
+          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
           src={video}
           poster={picture}
           autoPlay
@@ -184,7 +184,10 @@ export function HomeScreen() {
           preload="auto"
         />
       ) : picture ? (
-        <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
+        <div
+          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
+          style={{ backgroundImage: `url("${picture}")` }}
+        />
       ) : picture === false ? (
         <div className="home-fallback-brand">
           <BrandMark size={48} />
