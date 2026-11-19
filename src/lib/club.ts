@@ -5,9 +5,10 @@ import { id } from "./ids";
 import {
   gameTypeLabel,
   isGameType,
+  maxSeatsFor,
   type GameType,
 } from "./poker/variants";
-import { ensureOnce } from "./schema-once";
+import { ensureOnce, hasColumns } from "./schema-once";
 import { ensureTablePlaySchema } from "./table-schema";
 
 export const DEFAULT_CLUB_ID = "club_fa_poker";
@@ -79,7 +80,11 @@ export type Tournament = {
   game_type?: string;
 };
 
+/** Once the club is known to exist, later calls on this server skip the check. */
+let clubSeeded = false;
+
 export async function ensureClubSeeded() {
+  if (clubSeeded) return;
   const existing = await sql<{ id: string }>(
     "select id from clubs where id = $1",
     [DEFAULT_CLUB_ID],
@@ -87,6 +92,7 @@ export async function ensureClubSeeded() {
   if (existing.length) {
     // Ensure schema only — never refill bot_float (that would mint chips).
     await ensureBotFloatColumn();
+    clubSeeded = true;
     return;
   }
 
@@ -125,7 +131,8 @@ export async function getOverview(clubId = DEFAULT_CLUB_ID) {
   await ensureClubSeeded();
   const envInvite = process.env.CLUB_INVITE?.trim();
   if (envInvite) {
-    await sql("update clubs set invite_code = $1 where id = $2", [
+    // only writes when the invite actually changed
+    await sql("update clubs set invite_code = $1 where id = $2 and invite_code <> $1", [
       envInvite.slice(0, 32),
       clubId,
     ]);
@@ -211,6 +218,7 @@ async function ensureHouseMember() {
 
 async function ensureBotFloatColumn() {
   await ensureOnce("bot-float-column", async () => {
+    if (await hasColumns([["club_rake", "bot_float"]])) return;
     await sql(
       `alter table club_rake add column if not exists bot_float numeric(14, 2) not null default 0`,
     );
@@ -356,14 +364,10 @@ export async function createTable(input: {
   }
   await ensureTablePlaySchema();
   const requested = input.gameType ?? "NLH";
-  const clubGames: GameType[] = ["NLH", "PLO", "PLO5", "PLO6", "PLO_HILO"];
-  if (!clubGames.includes(requested as GameType)) {
-    throw new Error("Club tables support Texas Hold'em and PLO variants only");
-  }
+  if (!isGameType(requested)) throw new Error("Unknown game");
   const gameType = requested as GameType;
-  // Leave room for 5 board + burns: PLO6 needs ≤7 seats on a 52-card deck.
-  const maxSeats =
-    gameType === "PLO6" ? 6 : gameType === "PLO5" ? 7 : 9;
+  // one deck: PLO6 ≤6, PLO5 ≤7, OFC Pineapple ≤3, everything else ≤9
+  const maxSeats = maxSeatsFor(gameType);
   const seats = Math.max(2, Math.min(maxSeats, Math.floor(input.seats) || 6));
   const squidTarget = Math.max(1, Math.min(9, Math.floor(input.squidTarget ?? 3) || 3));
   const cucuruchoAnteBb = Math.max(
