@@ -7,16 +7,13 @@ import "./home.css";
 
 /** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
 const HOME_PICTURES = [
-  // the owner's still picture: sharks above, the SHARK CLUB sign underneath (nothing moves)
-  "/banners/Shark%20Club%20Beneath%20Schooling%20Fish.png",
   "/banners/home-background.gif",
   "/banners/shark-club-home.webp",
   "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
 ];
 
-/** Moving-water version of the old picture — switched off: the name must stay still. */
+/** Moving-water version of the picture (shark and title stay still). */
 const HOME_VIDEO = "/banners/home-water.mp4";
-const USE_HOME_VIDEO = false;
 
 /**
  * Reward tiles, best first: see-through animated WebP (no background at all,
@@ -154,10 +151,9 @@ export function HomeScreen() {
     void firstThatExists(HOME_PICTURES).then((src) => {
       if (!cancelled) setPicture(src ?? false);
     });
-    if (USE_HOME_VIDEO)
-      void exists(HOME_VIDEO).then((ok) => {
-        if (!cancelled) setVideo(ok);
-      });
+    void exists(HOME_VIDEO).then((ok) => {
+      if (!cancelled) setVideo(ok);
+    });
     if (SHOW_REWARDS) Promise.all(
       BANNERS.map(async (b) => {
         const src = await firstThatExists(b.files);
@@ -192,6 +188,9 @@ export function HomeScreen() {
           <BrandMark size={48} />
         </div>
       ) : null}
+
+      {/* the club name: still (not part of the moving water), centred under the shark */}
+      {picture ? <div className="home-name">SHARK CLUB</div> : null}
 
       <div className="home-bottom">
         {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}

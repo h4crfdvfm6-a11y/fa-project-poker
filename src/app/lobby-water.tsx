@@ -7,7 +7,8 @@
  */
 import "./lobby-water.css";
 
-const LOBBY_PICTURE = "/banners/IMG_4873.jpg";
+// the owner's picture: sharks above, the wooden SHARK CLUB sign underneath
+const LOBBY_PICTURE = "/banners/Shark%20Club%20Beneath%20Schooling%20Fish.png";
 
 export function LobbyWater() {
   return (
