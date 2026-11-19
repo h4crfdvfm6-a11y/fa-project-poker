@@ -7,13 +7,15 @@ import "./home.css";
 
 /** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
 const HOME_PICTURES = [
+  // smaller shark, built into the picture (owner uploads it)
+  "/banners/shark-club-home-small.jpg",
   "/banners/home-background.gif",
   "/banners/shark-club-home.webp",
   "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
 ];
 
-/** Moving-water version of the picture (shark and title stay still). */
-const HOME_VIDEO = "/banners/home-water.mp4";
+/** Moving-water version of the picture; the smaller-shark one first when uploaded. */
+const HOME_VIDEOS = ["/banners/home-water-small.mp4", "/banners/home-water.mp4"];
 
 /**
  * Reward tiles, best first: see-through animated WebP (no background at all,
@@ -143,7 +145,7 @@ function startOnIphone(v: HTMLVideoElement | null) {
 
 export function HomeScreen() {
   const [picture, setPicture] = useState<string | false | null>(null);
-  const [video, setVideo] = useState(false);
+  const [video, setVideo] = useState<string | null>(null);
   const [slides, setSlides] = useState<Slide[]>([]);
 
   useEffect(() => {
@@ -151,8 +153,8 @@ export function HomeScreen() {
     void firstThatExists(HOME_PICTURES).then((src) => {
       if (!cancelled) setPicture(src ?? false);
     });
-    void exists(HOME_VIDEO).then((ok) => {
-      if (!cancelled) setVideo(ok);
+    void firstThatExists(HOME_VIDEOS).then((src) => {
+      if (!cancelled) setVideo(src);
     });
     if (SHOW_REWARDS) Promise.all(
       BANNERS.map(async (b) => {
@@ -173,7 +175,7 @@ export function HomeScreen() {
         <video
           ref={startOnIphone}
           className="home-picture"
-          src={HOME_VIDEO}
+          src={video}
           poster={picture}
           autoPlay
           loop

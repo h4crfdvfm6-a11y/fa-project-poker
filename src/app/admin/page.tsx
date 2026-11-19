@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { BrandMark } from "../brand-mark";
+import { TournamentsPanel } from "./tournaments-panel";
 
 type Overview = {
   club: { name: string; invite_code: string };
@@ -64,7 +65,7 @@ function money(v: string | number) {
 export default function AdminPage() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [pin, setPin] = useState("");
-  const [tab, setTab] = useState<"overview" | "players" | "tables" | "bbjp">(
+  const [tab, setTab] = useState<"overview" | "players" | "tables" | "tournaments" | "bbjp">(
     "overview",
   );
   const [error, setError] = useState("");
@@ -356,6 +357,7 @@ export default function AdminPage() {
             ["overview", "Overview"],
             ["players", "Players"],
             ["tables", "Tables"],
+            ["tournaments", "Tournaments"],
             ["bbjp", "BBJP"],
           ] as const
         ).map(([key, label]) => (
@@ -719,6 +721,8 @@ export default function AdminPage() {
           </div>
         </section>
       ) : null}
+
+      {tab === "tournaments" ? <TournamentsPanel /> : null}
 
       {tab === "bbjp" && bbjp ? (
         <section className="grid gap-4">

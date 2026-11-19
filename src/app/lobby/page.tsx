@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
+import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type LobbyData = {
   leaving?: number;
+  tournaments?: LobbyTournament[];
+  myTournamentIds?: string[];
   club: { name: string; invite_code?: string };
   tables: Array<{
     id: string;
@@ -61,6 +64,16 @@ export default function LobbyPage() {
     const t = setTimeout(() => void load(), 3000);
     return () => clearTimeout(t);
   }, [leaving, data, load]);
+
+  // registered in a tournament: keep the list fresh so "Go to your table" appears when it starts
+  const waitingForTournament = Boolean(
+    data?.tournaments?.some((t) => data.myTournamentIds?.includes(t.id)),
+  );
+  useEffect(() => {
+    if (!waitingForTournament) return;
+    const t = setInterval(() => void load(), 5000);
+    return () => clearInterval(t);
+  }, [waitingForTournament, load]);
 
   async function join(e: FormEvent) {
     e.preventDefault();
@@ -160,6 +173,13 @@ export default function LobbyPage() {
           </button>
         </form>
       )}
+
+      <LobbyTournaments
+        tournaments={data.tournaments ?? []}
+        mine={data.myTournamentIds ?? []}
+        signedIn={Boolean(data.me)}
+        onChange={load}
+      />
 
       <section className="mb-6">
         <h2 className="brand mb-3 text-2xl">Open tables</h2>
