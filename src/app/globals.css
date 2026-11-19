@@ -316,3 +316,26 @@ html[data-deck="amber"] .cs-room .cs-card.back {
   object-fit: cover;
   display: block;
 }
+
+/* Table screen: nothing behind the table, and the page can't be dragged or
+   stretched (iPhone pull-down / rubber-band) — the table stays put. */
+html:has(.cs-room),
+html:has(.cs-room) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #000;
+}
+html:has(.cs-room) body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+html:has(.cs-room) body::before,
+html:has(.cs-room) body::after {
+  display: none;
+}
+.cs-room {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
