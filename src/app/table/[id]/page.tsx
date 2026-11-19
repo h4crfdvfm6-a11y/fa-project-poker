@@ -16,6 +16,7 @@ import {
   soundsMuted,
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
+import { FeltPicker } from "../../felt-choice";
 import "./table-skin.css";
 import { betPoint, demoView, potStacks, seatPoint } from "./table-layout";
 
@@ -1230,6 +1231,9 @@ export default function TablePage() {
                 </div>
               </>
             ) : null}
+
+            <h3>Table colour</h3>
+            <FeltPicker />
 
             <h3>Seat</h3>
             <div className="cs-sheet-row">
