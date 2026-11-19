@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
 import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
+import { FeltPicker } from "../felt-choice";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type LobbyData = {
@@ -173,6 +174,8 @@ export default function LobbyPage() {
           </button>
         </form>
       )}
+
+      <FeltPicker />
 
       <LobbyTournaments
         tournaments={data.tournaments ?? []}
