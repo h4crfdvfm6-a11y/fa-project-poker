@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { hasColumns } from "./schema-once";
 import { addBot, getTableView, leaveTable } from "./table-play";
 
 /**
@@ -15,10 +16,18 @@ const HOLD_SECONDS = 20;
 let schemaReady: Promise<void> | null = null;
 function ensureTestSchema() {
   schemaReady ??= (async () => {
-    await sql(`alter table cash_tables add column if not exists bot_hold_until timestamptz`);
+    if (!(await hasColumns([["cash_tables", "bot_hold_until"]]))) {
+      await sql(`alter table cash_tables add column if not exists bot_hold_until timestamptz`);
+    }
+    // fill tables up to the most the game allows (one deck): PLO6 6, PLO5 7,
+    // OFC Pineapple 3, everything else 9 — never more, or the deck runs out
     await sql(
-      `update cash_tables set seats = 9
-       where coalesce(format, 'ring') <> 'tournament' and status = 'open' and seats < 9`,
+      `update cash_tables
+       set seats = case game_type
+         when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 else 9 end
+       where coalesce(format, 'ring') <> 'tournament' and status = 'open'
+         and seats < case game_type
+           when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 else 9 end`,
     );
   })().catch((error) => {
     schemaReady = null;
