@@ -14,5 +14,5 @@ export const FELTS = [
 
 export const FELT_KEY = "sc_felt";
 
-/** Runs before the page paints (in layout.tsx) so the chosen table shows at once. */
-export const FELT_INIT_SCRIPT = `try{var f=localStorage.getItem("${FELT_KEY}");if(f&&f!=="classic")document.documentElement.setAttribute("data-felt",f)}catch(e){}`;
+/** Runs before the page paints (in layout.tsx) so the chosen table and cards show at once. */
+export const FELT_INIT_SCRIPT = `try{var f=localStorage.getItem("${FELT_KEY}");if(f&&f!=="classic")document.documentElement.setAttribute("data-felt",f);var d=localStorage.getItem("sc_deck");if(d&&d!=="dark")document.documentElement.setAttribute("data-deck",d)}catch(e){}`;

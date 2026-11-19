@@ -17,6 +17,8 @@ import {
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
 import { FeltPicker } from "../../felt-choice";
+import { avatarSrc, defaultAvatar, sized } from "@/lib/looks";
+import { AvatarPicker, DeckPicker } from "./looks-menu";
 import "./table-skin.css";
 import { betPoint, demoView, potStacks, seatPoint } from "./table-layout";
 
@@ -239,6 +241,11 @@ export default function TablePage() {
   const prevView = useRef<TableView | null>(null);
   const clockKey = useRef<string>("");
   const [deadline, setDeadline] = useState<number | null>(null);
+  // avatars the players here chose (seat → id) and yours
+  const [avatars, setAvatars] = useState<{ bySeat: Record<string, string>; mine: string | null }>({
+    bySeat: {},
+    mine: null,
+  });
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
@@ -287,6 +294,39 @@ export default function TablePage() {
       clearInterval(r);
     };
   }, [load, tableId, isDemo]);
+
+  const loadAvatars = useCallback(async () => {
+    if (isDemo) return;
+    const res = await fetch(`/api/table/${tableId}/avatars`, { cache: "no-store" }).catch(() => null);
+    const json = res?.ok ? await res.json().catch(() => null) : null;
+    if (json) setAvatars({ bySeat: json.bySeat ?? {}, mine: json.mine ?? null });
+  }, [tableId, isDemo]);
+
+  useEffect(() => {
+    void loadAvatars();
+    if (isDemo) return;
+    const t = setInterval(() => void loadAvatars(), 5000);
+    return () => clearInterval(t);
+  }, [loadAvatars, isDemo]);
+
+  /** choose your avatar: everyone at the table sees it */
+  async function pickAvatar(id: string) {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
+    setAvatars((a) => ({ ...a, mine: id }));
+    const res = await fetch("/api/me/avatar", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ avatar: id }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError(json.error || "Could not change avatar");
+    }
+    await loadAvatars();
+  }
 
   useEffect(() => {
     if (!view?.handStrength?.premium) return;
@@ -836,7 +876,15 @@ export default function TablePage() {
               style={style}
             >
               <div className="cs-avatar">
-                {avatarFor(seat.name, seat.isBot)}
+                {(() => {
+                  const src = avatarSrc(avatars.bySeat[String(seat.seat)] ?? defaultAvatar(seat.name));
+                  return src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="cs-avatar-img" src={sized(src, 128)} alt="" />
+                  ) : (
+                    avatarFor(seat.name, seat.isBot)
+                  );
+                })()}
                 {hand && hand.button === seat.seat ? <div className="cs-dealer">D</div> : null}
                 {win ? (
                   <div className="cs-winner">
@@ -1232,8 +1280,18 @@ export default function TablePage() {
               </>
             ) : null}
 
+            {!isDemo ? (
+              <>
+                <h3>Your avatar</h3>
+                <AvatarPicker current={avatars.mine} onPick={(id) => void pickAvatar(id)} />
+              </>
+            ) : null}
+
             <h3>Table colour</h3>
             <FeltPicker />
+
+            <h3>Cards</h3>
+            <DeckPicker />
 
             <h3>Seat</h3>
             <div className="cs-sheet-row">

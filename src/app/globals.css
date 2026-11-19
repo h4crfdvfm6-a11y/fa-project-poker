@@ -290,3 +290,29 @@ html[data-felt="teal"] .cs-room {
     url("/banners/felt-teal.jpg") center top / cover no-repeat,
     #000;
 }
+
+/* Card backs: the owner's dark compass card is the standard back (replaces the
+   blue Shark Club back); players can pick another in the table menu
+   (looks-menu.tsx sets <html data-deck>). */
+.cs-room .cs-card.back {
+  background: #1d1d1f url("/_next/image?url=%2Fbanners%2FMonochrome%20compass%20scrollwork%20card%20back-1.png&w=128&q=75") center / cover no-repeat;
+  border: none;
+}
+html[data-deck="silver"] .cs-room .cs-card.back {
+  background: #fff url("/_next/image?url=%2Fbanners%2FSilver%20compass%20scrollwork%20card%20back-2.png&w=128&q=75") center / cover no-repeat;
+}
+html[data-deck="coral"] .cs-room .cs-card.back {
+  background: #fff url("/_next/image?url=%2Fbanners%2FCoral%20Victorian%20Compass%20Card%20Back-2.png&w=128&q=75") center / cover no-repeat;
+}
+html[data-deck="amber"] .cs-room .cs-card.back {
+  background: #fff url("/_next/image?url=%2Fbanners%2FAmber%20Victorian%20compass%20card%20back-3.png&w=128&q=75") center / cover no-repeat;
+}
+
+/* chosen avatars fill the round picture next to each player */
+.cs-avatar img.cs-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
