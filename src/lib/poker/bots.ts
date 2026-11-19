@@ -39,6 +39,18 @@ export function decideBotAction(
   const style = styleForBot(seat.memberId);
   const toCall = Math.max(0, state.currentBet - seat.bet);
   const stackMax = seat.bet + seat.stack;
+  /**
+   * Put chips in when nobody has bet yet. Before the flop the big blind (or a
+   * straddler) already has the current bet in, so that's a raise, not a bet —
+   * the engine refuses a "bet" there ("Use raise").
+   */
+  const open = (to: number): { type: ActionType; amount?: number } => {
+    if (state.currentBet <= 0) return { type: "bet", amount: Math.min(stackMax, to) };
+    const raiseTo = Math.max(to, state.currentBet + state.minRaise);
+    return raiseTo >= stackMax
+      ? { type: "allin", amount: stackMax }
+      : { type: "raise", amount: raiseTo };
+  };
 
   if (isAllInOrFold(state.gameType)) {
     const shoveChance =
@@ -57,18 +69,15 @@ export function decideBotAction(
         ? { type: "allin", amount: stackMax }
         : { type: "call", amount: seat.bet + toCall };
     }
-    return seat.stack > 0
-      ? { type: "bet", amount: stackMax }
-      : { type: "fold" };
+    return seat.stack > 0 ? open(stackMax) : { type: "fold" };
   }
 
   if (toCall === 0) {
     if (style === "aggressive" && Math.random() < 0.35 && seat.stack > state.bb) {
-      const betTo = Math.min(stackMax, seat.bet + state.bb * (style === "aggressive" ? 3 : 2));
-      return { type: "bet", amount: betTo };
+      return open(seat.bet + state.bb * (style === "aggressive" ? 3 : 2));
     }
     if (style === "tricky" && Math.random() < 0.2 && seat.stack > state.bb * 2) {
-      return { type: "bet", amount: Math.min(stackMax, seat.bet + state.bb * 2.5) };
+      return open(seat.bet + state.bb * 2.5);
     }
     return { type: "check" };
   }

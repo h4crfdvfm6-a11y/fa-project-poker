@@ -79,6 +79,24 @@ export function isHiLo(game: GameType): boolean {
   return game === "PLO_HILO";
 }
 
+/**
+ * Most players a table of this game can seat with one deck: board + burns
+ * leave room for 7 PLO5 hands and 6 PLO6 hands; OFC Pineapple deals up to
+ * 17 cards per player, so 3 players.
+ */
+export function maxSeatsFor(game: GameType): number {
+  switch (game) {
+    case "PLO6":
+      return 6;
+    case "PLO5":
+      return 7;
+    case "OFC_PINEAPPLE":
+      return 3;
+    default:
+      return 9;
+  }
+}
+
 export function gameTypeLabel(game: GameType): string {
   switch (game) {
     case "NLH":

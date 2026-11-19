@@ -1,7 +1,7 @@
 import { DEFAULT_CLUB_ID, ensureClubSeeded, num } from "./club";
 import { sql, withTransaction } from "./db";
 import { id } from "./ids";
-import { ensureOnce } from "./schema-once";
+import { ensureOnce, hasColumns } from "./schema-once";
 
 export type ShopItem = {
   id: string;
@@ -149,6 +149,24 @@ const DEFAULTS: Array<{
 
 async function ensureShopSchema() {
   await ensureOnce("shop-schema", async () => {
+    // skip the ALTERs / catalog inserts when everything is already there
+    if (
+      await hasColumns([
+        ["members", "gem_balance"],
+        ["members", "equipped_avatar"],
+        ["members", "equipped_felt"],
+        ["members", "equipped_card_back"],
+        ["shop_catalog", "id"],
+        ["member_inventory", "item_id"],
+        ["shop_purchases", "id"],
+      ])
+    ) {
+      const [row] = await sql<{ n: string | number }>(
+        `select count(*) as n from shop_catalog where id = any($1::text[])`,
+        [DEFAULTS.map((d) => d.id)],
+      );
+      if (Number(row?.n ?? 0) >= DEFAULTS.length) return;
+    }
     await sql(
       `alter table members add column if not exists gem_balance integer not null default 0`,
     );
