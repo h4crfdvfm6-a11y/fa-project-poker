@@ -10,6 +10,6 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#08143a",
     theme_color: "#08143a",
-    icons: [{ src: "/brand/icon.jpg", sizes: "180x180", type: "image/jpeg" }],
+    icons: [{ src: "/banners/app-icon.png", sizes: "512x512", type: "image/png" }],
   };
 }
