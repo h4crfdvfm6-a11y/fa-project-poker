@@ -169,20 +169,27 @@ export function HomeScreen() {
 
   return (
     <main className="home-screen">
+      {/* two copies: the full-screen water behind, and a smaller copy on top
+          that shows only the shark (so the shark is smaller, the water still fills) */}
       {picture && video && !picture.endsWith(".gif") ? (
-        <video
-          ref={startOnIphone}
-          className="home-picture"
-          src={HOME_VIDEO}
-          poster={picture}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        />
+        ["home-picture", "home-picture home-shark"].map((cls) => (
+          <video
+            key={cls}
+            ref={startOnIphone}
+            className={cls}
+            src={HOME_VIDEO}
+            poster={picture}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+          />
+        ))
       ) : picture ? (
-        <div className="home-picture" style={{ backgroundImage: `url("${picture}")` }} />
+        ["home-picture", "home-picture home-shark"].map((cls) => (
+          <div key={cls} className={cls} style={{ backgroundImage: `url("${picture}")` }} />
+        ))
       ) : picture === false ? (
         <div className="home-fallback-brand">
           <BrandMark size={48} />
