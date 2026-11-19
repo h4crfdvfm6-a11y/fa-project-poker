@@ -6,6 +6,7 @@ import { LobbyWater } from "../lobby-water";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type LobbyData = {
+  leaving?: number;
   club: { name: string; invite_code?: string };
   tables: Array<{
     id: string;
@@ -52,6 +53,14 @@ export default function LobbyPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // a table you just left was mid-hand: your chips come back when it ends
+  const leaving = data?.leaving ?? 0;
+  useEffect(() => {
+    if (!leaving) return;
+    const t = setTimeout(() => void load(), 3000);
+    return () => clearTimeout(t);
+  }, [leaving, data, load]);
 
   async function join(e: FormEvent) {
     e.preventDefault();
