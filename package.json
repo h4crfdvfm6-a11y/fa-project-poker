@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && node scripts/migrate.mjs",
+    "build": "npm test && next build && node scripts/migrate.mjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
