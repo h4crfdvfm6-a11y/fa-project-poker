@@ -191,8 +191,8 @@ export function HomeScreen() {
         </div>
       ) : null}
 
-      {/* the club name: still (not part of the moving water), centred under the shark */}
-      {picture ? <div className="home-name">SHARK CLUB</div> : null}
+      {/* the club name: still, centred under the shark (the -small files already have it) */}
+      {picture && !picture.includes("-small") ? <div className="home-name">SHARK CLUB</div> : null}
 
       <div className="home-bottom">
         {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
