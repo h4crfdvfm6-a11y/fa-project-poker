@@ -124,6 +124,35 @@ export async function leaveAllTables(memberId: string, exceptTableId?: string) {
   }
 }
 
+/**
+ * Back in the lobby without waiting: leave every table that is between hands
+ * straight away; a table still mid-hand is marked so the player goes the
+ * moment it ends, and its hand is played out in the background (`later`).
+ * Returns how many tables are still finishing a hand.
+ */
+export async function leaveAllTablesQuick(
+  memberId: string,
+  later: (task: () => Promise<unknown>) => void,
+) {
+  await ensurePresenceSchema();
+  let pending = 0;
+  for (const r of await seatedTables(memberId)) {
+    if (await tryLeave(r.table_id, memberId)) continue;
+    pending++;
+    // only the first lobby visit starts the background play-out for a table
+    const marked = await sql(
+      `update table_seats set leave_requested = true
+       where table_id = $1 and member_id = $2 and not leave_requested returning seat_no`,
+      [r.table_id, memberId],
+    );
+    if (!marked.length) continue;
+    later(async () => {
+      if (await playOutHand(r.table_id, 60_000)) await tryLeave(r.table_id, memberId);
+    });
+  }
+  return pending;
+}
+
 /** True if this player still has chips sitting on another table. */
 export async function chipsOnOtherTable(memberId: string, tableId: string) {
   return (await seatedTables(memberId)).some((r) => r.table_id !== tableId);
