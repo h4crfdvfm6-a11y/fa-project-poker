@@ -958,12 +958,6 @@ export default function TablePage() {
                   );
                 })()}
                 {hand && hand.button === seat.seat ? <div className="cs-dealer">D</div> : null}
-                {win ? (
-                  <div className="cs-winner">
-                    WIN +{fmt(win.amount)}
-                    {win.hand ? <small>{win.hand}</small> : null}
-                  </div>
-                ) : null}
                 {rx ? <div className="cs-reaction">{rx.emoji}</div> : null}
               </div>
               {live?.hole?.length && (!live.folded || live.hole.some((c) => c !== "xx")) ? (
@@ -983,17 +977,27 @@ export default function TablePage() {
               >
                 {clockFor(seat.seat).badge}
                 <div className="n">{seat.name}</div>
-                <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
+                {seat.sittingOut && !live?.hole?.length ? (
+                  // sitting out: same size box, the words replace the chip count
+                  <div className="st out">Sitting out</div>
+                ) : (
+                  <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
+                )}
                 {live?.allIn ? (
                   <div className="bt allin">ALL-IN</div>
-                ) : seat.sittingOut && !live?.hole?.length ? (
-                  <div className="bt">SITTING OUT</div>
                 ) : seat.memberId && view.squid?.scores?.[seat.memberId] ? (
                   <div className="bt">
                     🦑 {view.squid.scores[seat.memberId]}/{view.squid.target}
                   </div>
                 ) : null}
               </div>
+              {/* WIN sits just under the name box, so it never covers cards, names or pictures */}
+              {win ? (
+                <div className="cs-winner seat-win">
+                  WIN +{fmt(win.amount)}
+                  {win.hand ? <small>{win.hand}</small> : null}
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -1047,13 +1051,15 @@ export default function TablePage() {
               <div className="n">
                 You{hand && hand.button === view.meSeat ? " · D" : ""}
               </div>
-              <div className="st">{fmt(me?.stack ?? meSeatInfo?.stack ?? 0)}</div>
+              {meSittingOut && !me?.hole?.length ? (
+                <div className="st out">Sitting out</div>
+              ) : (
+                <div className="st">{fmt(me?.stack ?? meSeatInfo?.stack ?? 0)}</div>
+              )}
               {me?.folded ? (
                 <div className="bt allin">FOLDED</div>
               ) : me?.allIn ? (
                 <div className="bt allin">ALL-IN</div>
-              ) : meSittingOut ? (
-                <div className="bt">SITTING OUT</div>
               ) : null}
               {view.meSeat != null && winnerOf(view.meSeat) ? (
                 <div className="cs-winner">
