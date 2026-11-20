@@ -55,10 +55,10 @@ html[data-deck="blue"] .cs-room .cs-card.back { background: #fff url("/_next/ima
 }
 .cs-room .cs-card .ss {
   position: absolute;
-  left: 8%;
-  top: 47cqw;
-  width: 27cqw;
-  height: 27cqw;
+  left: 9%;
+  top: 57cqw; /* a clear gap under the rank, like GG */
+  width: 24cqw;
+  height: 24cqw;
 }
 .cs-room .cs-card .s {
   left: auto;
@@ -136,3 +136,27 @@ html[data-face="gold"] .cs-room .cs-card:not(.back) {
 .cs-sheet button.cs-face-tile.face-four { color: #129a3c; }
 .cs-sheet button.cs-face-tile.face-colour { background: linear-gradient(160deg, #2fa64a, #127a2c); color: #fff; }
 .cs-sheet button.cs-face-tile.face-gold { background: linear-gradient(135deg, #fbf3c8 0%, #e9cf7a 40%, #c9a54a 75%, #f3e2a0 100%); color: #111; }
+
+/* The table picture fills the whole phone screen, also the strip behind
+   Safari's bottom bar (it showed as a black band when the bar was hidden).
+   Buttons stay where they are: they're placed on the visible screen. */
+main.cs-room {
+  bottom: auto;
+  height: 100vh;
+  height: 100lvh;
+}
+
+/* WIN label sits above a player's picture, so shown cards never cover it
+   (and it never covers the cards). */
+.cs-room .cs-seat .cs-avatar .cs-winner {
+  top: 0;
+  transform: translate(-50%, -100%);
+  z-index: 12;
+}
+
+/* the countdown badge turns gold while a free Time Bank card (+10 s) is used */
+.cs-room .turn-seconds.bank {
+  background: #3a2a05;
+  color: #ffd34d;
+  border-color: #ffd34d;
+}

@@ -158,7 +158,30 @@ export async function chipsOnOtherTable(memberId: string, tableId: string) {
   return (await seatedTables(memberId)).some((r) => r.table_id !== tableId);
 }
 
-/** On every table poll: take off players who asked to leave or went away. */
+/**
+ * Sit out from the next hand (or come back). Cash tables only: in a
+ * tournament your blinds keep being posted, so there is no sitting out.
+ * A player sat out for 15 minutes (7 on All-in or Fold tables) leaves the
+ * table and their chips go back to their club balance.
+ */
+export const SIT_OUT_MINUTES = 15;
+export const SIT_OUT_MINUTES_AOF = 7;
+
+export async function setSitOut(tableId: string, memberId: string, out: boolean) {
+  const rows = await sql<{ seat_no: number }>(
+    `update table_seats s
+     set sitting_out = $3::boolean,
+         sat_out_at = case when $3::boolean then (case when s.sitting_out then coalesce(s.sat_out_at, now()) else now() end) else null end
+     from cash_tables t
+     where s.table_id = $1 and s.member_id = $2 and t.id = s.table_id
+       and coalesce(t.format, 'ring') <> 'tournament'
+     returning s.seat_no`,
+    [tableId, memberId, out],
+  );
+  if (!rows.length) throw new Error("You can only sit out at a cash table you're seated at");
+}
+
+/** On every table poll: take off players who asked to leave, went away or sat out too long. */
 export async function processPendingLeaves(tableId: string) {
   await ensurePresenceSchema();
   const rows = await sql<{ member_id: string }>(
@@ -166,7 +189,10 @@ export async function processPendingLeaves(tableId: string) {
      join cash_tables t on t.id = s.table_id
      where s.table_id = $1 and s.member_id is not null and not s.is_bot
        and coalesce(t.format, 'ring') <> 'tournament'
-       and (s.leave_requested or s.last_seen_at < now() - interval '${AWAY_SECONDS} seconds')`,
+       and (s.leave_requested
+         or s.last_seen_at < now() - interval '${AWAY_SECONDS} seconds'
+         or (s.sitting_out and s.sat_out_at < now() - make_interval(mins =>
+               case when t.game_type like 'AOF%' then ${SIT_OUT_MINUTES_AOF} else ${SIT_OUT_MINUTES} end)))`,
     [tableId],
   );
   let left = false;
