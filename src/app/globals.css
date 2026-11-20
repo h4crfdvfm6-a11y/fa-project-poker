@@ -339,3 +339,75 @@ html:has(.cs-room) body::after {
   overscroll-behavior: none;
   touch-action: manipulation;
 }
+
+/* GG-style betting buttons: glossy rounded buttons, dark pill presets with gold
+   amounts, gold-ringed amount box, ALL-IN in black and gold. */
+.cs-room .cs-actions {
+  gap: 6px;
+}
+.cs-room .cs-action {
+  height: 56px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.25),
+    0 6px 14px rgba(0, 0, 0, 0.55);
+}
+.cs-room .cs-action.fold {
+  background: linear-gradient(180deg, #e2404c 0%, #b51e2b 55%, #7d0f19 100%);
+}
+.cs-room .cs-action.call {
+  background: linear-gradient(180deg, #2fd27e 0%, #13a257 55%, #0a6d39 100%);
+}
+.cs-room .cs-action.raise {
+  background: linear-gradient(180deg, #ffab2e 0%, #f07a0c 55%, #b44f00 100%);
+}
+.cs-room .cs-action.allin {
+  background: linear-gradient(180deg, #1f2430 0%, #141821 100%);
+  border: 1.5px solid #ffcf4a;
+  color: #ffd76a;
+}
+.cs-room .cs-preset {
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(14, 17, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+}
+.cs-room .cs-preset small {
+  font-size: 10px;
+  color: #ffd76a;
+  font-weight: 700;
+}
+.cs-room .cs-amount {
+  height: 40px;
+  background: linear-gradient(#ffcf4a, #c9901a);
+  padding: 2px;
+}
+.cs-room .cs-amount span {
+  font-size: 16px;
+  color: #ffd76a;
+}
+
+/* Bigger bet chips in front of players. Side seats stack the chip above the
+   amount so the bigger chip never slides under your cards or a name box. */
+.cs-room .cs-bet i {
+  width: clamp(30px, 10.5cqw, 38px);
+}
+.cs-room .cs-bet span {
+  font-size: clamp(12px, 4.1cqw, 15px);
+  padding: 1px 7px 2px;
+}
+.cs-room .cs-bet.from-left,
+.cs-room .cs-bet.from-right {
+  flex-direction: column;
+  gap: 1px;
+}
