@@ -11,8 +11,19 @@ export async function GET() {
     await sql("select 1");
     times.push(Math.round(performance.now() - t));
   }
+  // Which database copy this build talks to (Neon endpoint id only, no secrets):
+  // test builds should show a different id from the live app.
+  let dbEndpoint: string | null = null;
+  try {
+    const host = new URL(process.env.DATABASE_URL ?? "").hostname;
+    dbEndpoint = host.split(".")[0]!.replace(/-pooler$/, "") || null;
+  } catch {
+    // no database configured
+  }
   return Response.json({
     region: process.env.VERCEL_REGION ?? null,
+    env: process.env.VERCEL_ENV ?? null,
+    dbEndpoint,
     dbQueryMs: times,
   });
 }
