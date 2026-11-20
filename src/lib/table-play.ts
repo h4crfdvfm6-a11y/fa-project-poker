@@ -52,7 +52,7 @@ import {
 } from "./tournament";
 
 /** Pause after a hand before the next deal: see who won and show your cards. */
-export const SHOWDOWN_PAUSE_MS = 6000;
+export const SHOWDOWN_PAUSE_MS = 3000;
 
 export type SeatRow = {
   table_id: string;
