@@ -146,12 +146,62 @@ main.cs-room {
   height: 100lvh;
 }
 
-/* WIN label sits above a player's picture, so shown cards never cover it
-   (and it never covers the cards). */
-.cs-room .cs-seat .cs-avatar .cs-winner {
-  top: 0;
-  transform: translate(-50%, -100%);
+/* WIN label just under the player's name box, lined up with the box's outer
+   edge on the side seats, so it never covers cards, names or pictures. */
+.cs-room .cs-seat > .cs-winner.seat-win {
+  top: 100%;
+  left: 50%;
+  bottom: auto;
+  transform: translate(-50%, 3px);
   z-index: 12;
+  padding: 2px 7px;
+  border-width: 1.5px;
+  font-size: clamp(9px, 2.7cqw, 13px);
+  white-space: nowrap;
+}
+.cs-room .cs-seat.left > .cs-winner.seat-win {
+  left: 0;
+  transform: translate(0, 3px);
+}
+.cs-room .cs-seat.right > .cs-winner.seat-win {
+  left: auto;
+  right: 0;
+  transform: translate(0, 3px);
+}
+
+/* sitting out: the words take the chip count's place (box stays the same size) */
+.cs-room .cs-plate .st.out {
+  color: var(--cs-gold);
+  font-size: clamp(9px, 2.6cqw, 12px);
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+/* The strip under the picture at the very bottom of the phone (behind
+   Safari's bar / the home bar) takes the colour of the bottom of the chosen
+   room, and the picture fades into it, so there's no black band. */
+html { --room-floor: #17171b; }
+html[data-room="reef"] { --room-floor: #122226; }
+html[data-room="lighthouse"] { --room-floor: #191a1e; }
+html[data-room="cove"] { --room-floor: #5b3c22; }
+html[data-room="ship"] { --room-floor: #18191a; }
+html:has(.cs-room),
+html:has(.cs-room) body {
+  background: var(--room-floor) !important;
+}
+main.cs-room {
+  background-color: var(--room-floor) !important;
+}
+main.cs-room::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9vh;
+  background: linear-gradient(to bottom, transparent, var(--room-floor));
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* the countdown badge turns gold while a free Time Bank card (+10 s) is used */
