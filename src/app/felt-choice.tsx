@@ -32,7 +32,7 @@ export function FeltPicker() {
   }
 
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="flex flex-wrap gap-2">
       {FELTS.map((f) => (
         <button
           key={f.id}
@@ -40,11 +40,13 @@ export function FeltPicker() {
           aria-label={f.label}
           title={f.label}
           onClick={() => choose(f.id)}
-          className="aspect-square rounded-full"
+          className="shrink-0 rounded-full"
           style={{
+            width: 30,
+            height: 30,
             background: `radial-gradient(circle at 40% 35%, ${f.color}, #000 140%)`,
-            border: felt === f.id ? "3px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
-            boxShadow: felt === f.id ? "0 0 12px rgba(255, 211, 77, 0.7)" : "none",
+            border: felt === f.id ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
+            boxShadow: felt === f.id ? "0 0 8px rgba(255, 211, 77, 0.7)" : "none",
           }}
         />
       ))}
