@@ -253,7 +253,7 @@ a {
   content: "";
   width: min(44cqw, 180px);
   aspect-ratio: 1983 / 793;
-  background: url("/banners/DC0168CE-18C4-47D0-B074-517A52E173CA.png") center / contain no-repeat;
+  background: url("/banners/logo-gap65.png") center / contain no-repeat;
   text-shadow: none;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }

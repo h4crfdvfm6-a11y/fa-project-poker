@@ -2,7 +2,7 @@ import Link from "next/link";
 import "./brand-mark.css";
 
 /** The owner's Shark Club logo (two sharks + SHARK CLUB), used in page headers. */
-export const LOGO_NAME_SRC = "/banners/DC0168CE-18C4-47D0-B074-517A52E173CA.png";
+export const LOGO_NAME_SRC = "/banners/logo-gap65.png";
 
 export function BrandMark({
   href = "/",
