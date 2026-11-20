@@ -42,6 +42,7 @@ import {
   type GameType,
 } from "./poker/variants";
 import { getMemberCosmetics } from "./shop";
+import { countHandPlayed } from "./time-bank";
 import { cardId } from "./poker/cards";
 import {
   getTournamentByTable,
@@ -49,6 +50,9 @@ import {
   maybeAdvanceTournamentBlinds,
   maybeFinishTournament,
 } from "./tournament";
+
+/** Pause after a hand before the next deal: see who won and show your cards. */
+export const SHOWDOWN_PAUSE_MS = 6000;
 
 export type SeatRow = {
   table_id: string;
@@ -668,7 +672,8 @@ export async function getTableView(
       runtime.state &&
       runtime.state.street === "showdown" &&
       runtime.state.endedAt &&
-      Date.now() - runtime.state.endedAt > 3500
+      // long enough for everyone to see the result and tap SHOW on their cards
+      Date.now() - runtime.state.endedAt > SHOWDOWN_PAUSE_MS
     ) {
       await markBustedPlayers(tableId);
       const finishedNow = await maybeFinishTournament(tableId);
@@ -678,7 +683,8 @@ export async function getTableView(
       runtime = await readRuntime(tableId);
       tournament = (await getTournamentByTable(tableId)) ?? tournament;
     } else if (!runtime.state || runtime.phase === "waiting") {
-      const occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
+      // players sitting out don't count: no point dealing until 2 can play
+      const occupied = seats.filter((s) => s.member_id && num(s.stack) > 0 && !s.sitting_out);
       if (occupied.length >= 2) {
         await beginNextHand(tableId);
         runtime = await readRuntime(tableId);
@@ -1006,6 +1012,12 @@ async function beginNextHand(tableId: string) {
     version: runtime.version + 1,
   });
   if (!wrote) return;
+  // free Time Bank cards: every hand dealt counts (1 card per 25 hands)
+  if (state.street !== "waiting") {
+    await countHandPlayed(
+      state.seats.filter((s) => s.hole.length > 0 && !s.isBot && s.memberId).map((s) => s.memberId),
+    ).catch(() => undefined);
+  }
   if (squidEnabled) {
     await bankSquidAnte(tableId, state, table);
     await settleSquidShowdown(tableId, state, table);
