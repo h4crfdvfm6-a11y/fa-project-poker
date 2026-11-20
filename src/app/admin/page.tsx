@@ -509,6 +509,7 @@ export default function AdminPage() {
                 <option value="PLO_HILO">PLO Hi-Lo</option>
                 <option value="SHORT_DECK">Short Deck (6+) Hold&apos;em</option>
                 <option value="OFC_PINEAPPLE">Open Face Chinese (Pineapple) · max 3</option>
+                <option value="OFC_JOKER_ULTIMATE">OFC Joker Ultimate · max 3</option>
                 <option value="AOF_NLH">All-in or Fold Hold&apos;em</option>
                 <option value="AOF_PLO">All-in or Fold Omaha</option>
                 <option value="BOMB_NLH">Bomb Pot Hold&apos;em</option>

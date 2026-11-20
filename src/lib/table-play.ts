@@ -579,9 +579,10 @@ function maskState(state: RuntimeState | null, viewerMemberId: string | null) {
           ? serializeOfcCards(state.draft)
           : state.draft.map(() => "xx"),
       unit: state.unit,
+      dealRound: state.dealRound,
       seats: state.seats.map((s) => {
         const isSelf = Boolean(viewerMemberId && s.memberId === viewerMemberId);
-        const show = isSelf || state.street === "showdown";
+        const show = isSelf || !s.inFantasy || state.street === "showdown";
         const rows = {
           front: show ? serializeOfcCards(s.front) : s.front.map(() => "xx"),
           middle: show ? serializeOfcCards(s.middle) : s.middle.map(() => "xx"),
@@ -990,10 +991,10 @@ async function beginNextHand(tableId: string) {
         );
 
   if (isOfc(gameType)) {
-    const prevFantasy = new Map<string, boolean>();
+    const prevFantasy = new Map<string, number>();
     if (isOfcState(runtime.state)) {
       for (const s of runtime.state.seats) {
-        if (s.fantasyNext) prevFantasy.set(s.memberId, true);
+        if (s.fantasyNext) prevFantasy.set(s.memberId, s.nextFantasyCards ?? 14);
       }
     }
     const ofc = startOfcHand(
@@ -1005,7 +1006,7 @@ async function beginNextHand(tableId: string) {
         isBot: s.is_bot,
         fantasy: prevFantasy.get(s.member_id!) || false,
       })),
-      { handNo, button, unit: num(table.bb) || 100 },
+      { handNo, button: prevFantasy.size ? runtime.button_seat : button, unit: num(table.bb) || 100, jokerUltimate: gameType === "OFC_JOKER_ULTIMATE" },
     );
     const phase =
       ofc.street === "waiting"
@@ -1015,7 +1016,7 @@ async function beginNextHand(tableId: string) {
           : "hand";
     const wrote = await writeRuntime(tableId, {
       handNo,
-      button,
+      button: ofc.button,
       phase,
       state: ofc,
       version: runtime.version + 1,
@@ -1360,7 +1361,8 @@ export async function playerOfcSet(
   tableId: string,
   memberId: string,
   placements: OfcPlacement[],
-  discardIndex: number | null = null,
+  discardIndex: number | number[] | null = null,
+  expected?: { handNo: number; dealRound: number },
 ) {
   const runtime = await readRuntime(tableId);
   if (!runtime.state || !isOfcState(runtime.state)) {
@@ -1369,6 +1371,9 @@ export async function playerOfcSet(
   const seat = runtime.state.seats.find((s) => s.memberId === memberId);
   if (!seat) throw new Error("Not at this table");
   if (runtime.state.toAct !== seat.seat) throw new Error("Not your turn");
+  if (expected && (runtime.state.handNo !== expected.handNo || runtime.state.dealRound !== expected.dealRound)) {
+    throw new Error("This OFC deal has ended");
+  }
   const next = applyOfcSet(runtime.state, seat.seat, placements, discardIndex);
   const wrote = await writeRuntime(tableId, {
     phase: next.street === "showdown" ? "showdown" : "hand",

@@ -24,10 +24,10 @@ function ensureTestSchema() {
     await sql(
       `update cash_tables
        set seats = case game_type
-         when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 else 9 end
+         when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 when 'OFC_JOKER_ULTIMATE' then 3 else 9 end
        where coalesce(format, 'ring') <> 'tournament' and status = 'open'
          and seats < case game_type
-           when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 else 9 end`,
+           when 'PLO6' then 6 when 'PLO5' then 7 when 'OFC_PINEAPPLE' then 3 when 'OFC_JOKER_ULTIMATE' then 3 else 9 end`,
     );
   })().catch((error) => {
     schemaReady = null;
