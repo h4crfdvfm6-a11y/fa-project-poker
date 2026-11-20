@@ -848,3 +848,93 @@ button.cs-empty-seat:not(:disabled) {
     bottom: 12px;
   }
 }
+
+.cs-ofc-board {
+  bottom: calc(env(safe-area-inset-bottom) + 54px);
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px);
+  overflow: auto;
+  width: min(calc(100vw - 16px), 720px);
+}
+
+.cs-ofc-tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cs-ofc-tables > div {
+  min-width: min(208px, 100%);
+}
+
+.cs-ofc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.cs-ofc-row > span {
+  width: 42px;
+}
+
+.cs-ofc-board .cs-card,
+.cs-ofc-slot {
+  width: 28px;
+  aspect-ratio: 5 / 7;
+}
+
+.cs-ofc-slot {
+  border: 1px dashed var(--cs-line);
+  border-radius: 4px;
+}
+
+.cs-ofc-board button {
+  padding: 0;
+}
+
+.cs-ofc-board button[aria-pressed="true"],
+.cs-ofc-slot:enabled {
+  outline: 2px solid var(--cs-gold);
+  outline-offset: 1px;
+}
+
+.cs-ofc-board small {
+  display: block;
+}
+
+.cs-ofc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cs-ofc-actions button {
+  padding: 8px 12px;
+  border: 1px solid var(--cs-line);
+  border-radius: 6px;
+}
+
+/* Keep the iOS status bar on a solid background with edge-to-edge viewport mode. */
+.cs-status-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top);
+  background: var(--room-floor, #18191a);
+  pointer-events: none;
+  z-index: 195;
+}
+
+.cs-joker {
+  display: grid;
+  place-items: center;
+  color: #861b4b;
+  font-size: 1rem;
+}
+
+.cs-ofc-board .cs-row > button {
+  min-width: 40px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  align-content: start;
+}

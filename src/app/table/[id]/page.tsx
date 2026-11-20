@@ -88,6 +88,7 @@ type TableView = {
     currentBet: number;
     log: string[];
     draft?: string[];
+    dealRound?: number;
     unit?: number;
     result: null | {
       winners?: Array<{ seat: number; amount: number; hand?: string }>;
@@ -205,6 +206,102 @@ const TICKED: CSSProperties = {
 
 const SUITS: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
+const OFC_ROWS = [
+  { id: "front", label: "Front", size: 3 },
+  { id: "middle", label: "Middle", size: 5 },
+  { id: "back", label: "Back", size: 5 },
+] as const;
+type OfcRow = (typeof OFC_ROWS)[number]["id"];
+
+function OfcBoard({ hand, meSeat, busy, submit }: {
+  hand: NonNullable<TableView["hand"]>;
+  meSeat: number | null;
+  busy: boolean;
+  submit: (placements: { cardIndex: number; row: OfcRow }[], discardIndex: number | number[] | null) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [choices, setChoices] = useState<Record<number, OfcRow | "discard">>({});
+  const draft = !hand.result && hand.toAct === meSeat && meSeat !== null ? hand.draft ?? [] : [];
+  const required = draft.length === 3 ? 2 : draft.length >= 14 ? 13 : draft.length;
+  const discardCount = draft.length - required;
+  const placements = Object.entries(choices).flatMap(([index, row]) =>
+    row === "discard" ? [] : [{ cardIndex: Number(index), row }],
+  );
+  const discarded = draft.flatMap((_, index) => choices[index] === "discard" ? [index] : []);
+  const ready = placements.length === required && discarded.length === discardCount;
+  const selectedDiscard = selected !== null && choices[selected] === "discard";
+
+  function assign(choice: OfcRow | "discard") {
+    if (selected === null) return;
+    setChoices((previous) => {
+      const next = { ...previous };
+      if (next[selected] === choice) delete next[selected];
+      else next[selected] = choice;
+      return next;
+    });
+    setSelected(null);
+  }
+
+  return (
+    <section className="cs-ofc cs-ofc-board" aria-label="Open-Face Chinese Poker">
+      <div className="cs-ofc-tables">
+        {[...hand.seats].sort((a, b) => Number(b.seat === meSeat) - Number(a.seat === meSeat)).map((seat) => {
+          const own = seat.seat === meSeat;
+          return (
+            <div key={seat.seat} className={own ? "cs-ofc-own" : "cs-ofc-opponent"}>
+              <b>{own ? "Your board" : seat.name}{seat.seat === hand.toAct ? " · Setting" : ""}</b>
+              {OFC_ROWS.map(({ id, label, size }) => {
+                const cards = seat.ofc?.[id] ?? [];
+                const pending = own ? placements.filter((entry) => entry.row === id) : [];
+                const occupied = cards.length + pending.length;
+                return (
+                  <div key={id} className="cs-ofc-row">
+                    <span>{label}</span>
+                    {cards.map((card, index) => <PlayingCard key={index} card={card} />)}
+                    {pending.map(({ cardIndex }) => (
+                      <button key={cardIndex} type="button" aria-label={`Move ${draft[cardIndex]}`} aria-pressed={selected === cardIndex} onClick={() => setSelected(cardIndex)} disabled={busy}>
+                        <PlayingCard card={draft[cardIndex]!} />
+                      </button>
+                    ))}
+                    {Array.from({ length: size - occupied }, (_, index) => own && draft.length ? (
+                      <button key={index} type="button" className="cs-ofc-slot" aria-label={`Place in ${label.toLowerCase()}, slot ${occupied + index + 1}`} disabled={busy || selected === null} onClick={() => assign(id)} />
+                    ) : <i key={index} className="cs-ofc-slot" />)}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      {hand.result?.rows?.map((row, index) => (
+        <div key={row.seat ?? index}>
+          Seat {(row.seat ?? index) + 1} · {row.fouled ? "Foul" : `${row.front} / ${row.middle} / ${row.back}`}
+          {row.fantasyNext ? " · Fantasyland next" : ""}
+          {row.delta != null ? ` · ${row.delta >= 0 ? "+" : ""}${row.delta.toLocaleString()}` : ""}
+        </div>
+      ))}
+      {draft.length > 0 && (
+        <>
+          <p>{discardCount ? `Place ${required} and discard ${discardCount}.` : "Place all five cards."} Tap a card, then an empty slot.</p>
+          <div className="cs-row">
+            {draft.map((card, index) => (
+              <button key={index} type="button" disabled={busy} aria-pressed={selected === index} aria-label={`Select ${card}${choices[index] ? `, ${choices[index]}` : ""}`} onClick={() => setSelected(index)}>
+                <PlayingCard card={card} />
+                {choices[index] && <small>{choices[index]}</small>}
+              </button>
+            ))}
+          </div>
+          <div className="cs-ofc-actions">
+            {discardCount > 0 && <button type="button" disabled={busy || selected === null || (discarded.length >= discardCount && !selectedDiscard)} onClick={() => assign("discard")}>{selectedDiscard ? "Undo discard" : "Discard selected"}</button>}
+            <button type="button" disabled={busy || !Object.keys(choices).length} onClick={() => { setChoices({}); setSelected(null); }}>Reset</button>
+            <button type="button" disabled={busy || !ready} onClick={() => void submit(placements, discarded.length ? discarded : null)}>Confirm</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function PlayingCard({
   card,
   premium,
@@ -228,6 +325,7 @@ function PlayingCard({
       />
     );
   }
+  if (card === "j0" || card === "j1") return <div className="cs-card cs-joker" aria-label="Joker">★</div>;
   const suit = card[1]!;
   const red = suit === "h" || suit === "d";
   const rank = card[0] === "T" ? "10" : card[0];
@@ -715,90 +813,26 @@ export default function TablePage() {
     await load();
   }
 
-  async function ofcAutoSet() {
-    if (!view?.hand?.draft?.length || view.meSeat == null) return;
-    const draft = view.hand.draft;
-    const mine = view.hand.seats.find((s) => s.seat === view.meSeat);
-    const frontN = mine?.ofc?.front.length ?? 0;
-    const midN = mine?.ofc?.middle.length ?? 0;
-    const backN = mine?.ofc?.back.length ?? 0;
-    const caps = {
-      front: Math.max(0, 3 - frontN),
-      middle: Math.max(0, 5 - midN),
-      back: Math.max(0, 5 - backN),
-    };
-    const order: Array<"back" | "middle" | "front"> = [];
-    for (let i = 0; i < caps.back; i++) order.push("back");
-    for (let i = 0; i < caps.middle; i++) order.push("middle");
-    for (let i = 0; i < caps.front; i++) order.push("front");
-    if (draft.length === 14) {
-      // Fantasyland: set 13, discard weakest (last index after rank sort in bot;
-      // here discard the last dealt card as a simple client default).
-      const discardIndex = 13;
-      const placements = Array.from({ length: 13 }, (_, i) => ({
-        cardIndex: i,
-        row: (order[i] || "front") as "front" | "middle" | "back",
-      }));
-      setBusy(true);
-      setError("");
-      const res = await fetch(`/api/table/${tableId}/action`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "ofc_set", placements, discardIndex }),
-      });
-      const json = await res.json();
-      setBusy(false);
-      if (!res.ok) {
-        setError(json.error || "OFC set failed");
-        return;
-      }
-      setView(json);
-      return;
-    }
-    if (draft.length === 5) {
-      const placements = draft.map((_, i) => ({
-        cardIndex: i,
-        row: order[i] || "front",
-      }));
-      setBusy(true);
-      setError("");
-      const res = await fetch(`/api/table/${tableId}/action`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "ofc_set", placements }),
-      });
-      const json = await res.json();
-      setBusy(false);
-      if (!res.ok) {
-        setError(json.error || "OFC set failed");
-        return;
-      }
-      setView(json);
-      return;
-    }
-    // Pineapple: keep first two into open rows, discard last.
-    const placements = [
-      { cardIndex: 0, row: order[0] || "front" },
-      { cardIndex: 1, row: order[1] || order[0] || "front" },
-    ];
+  async function submitOfc(placements: { cardIndex: number; row: OfcRow }[], discardIndex: number | number[] | null) {
     setBusy(true);
     setError("");
-    const res = await fetch(`/api/table/${tableId}/action`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        type: "ofc_set",
-        placements,
-        discardIndex: 2,
-      }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "OFC set failed");
-      return;
+    try {
+      const res = await fetch(`/api/table/${tableId}/action`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "ofc_set", placements, discardIndex,
+          handNo: view?.hand?.handNo, dealRound: view?.hand?.dealRound,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not set OFC cards");
+      setView(json);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not set OFC cards");
+    } finally {
+      setBusy(false);
     }
-    setView(json);
   }
 
   async function react(emoji: string) {
@@ -993,6 +1027,7 @@ export default function TablePage() {
 
   return (
     <main className="cs-room" style={SKIN_VARS}>
+      <div className="cs-status-bar" aria-hidden="true" />
       {/* ---------- HUD ---------- */}
       <div className="cs-hud">
         <div className="cs-hud-group">
@@ -1264,7 +1299,7 @@ export default function TablePage() {
                 })()}
                 {rx ? <div className="cs-reaction">{rx.emoji}</div> : null}
               </div>
-              {live?.hole?.length &&
+              {hand?.mode !== "ofc" && !!live?.hole?.length &&
               (!live.folded || live.hole.some((c) => c !== "xx")) ? (
                 // fewer, smaller cards for Omaha (4–6) so they stay on screen;
                 // a folded player only shows the cards they chose to show
@@ -1340,7 +1375,7 @@ export default function TablePage() {
           <div
             className={`cs-hero ${me?.folded ? "folded" : ""} ${myTurn ? "active" : ""}`}
           >
-            {me?.hole?.length ? (
+            {hand?.mode !== "ofc" && !!me?.hole?.length ? (
               <div className={`cs-hero-cards n${Math.min(me.hole.length, 6)}`}>
                 {me.hole.map((c, i) => (
                   <div
@@ -1400,48 +1435,14 @@ export default function TablePage() {
       </div>
 
       {/* ---------- OFC ---------- */}
-      {hand?.mode === "ofc" &&
-      hand.toAct === view.meSeat &&
-      (hand.draft?.length ?? 0) > 0 ? (
-        <div className="cs-ofc">
-          <b>OFC Pineapple — set your cards</b>
-          <div className="cs-row">
-            {(hand.draft || []).map((c, i) => (
-              <PlayingCard
-                key={`${c}-${i}`}
-                card={c}
-                cardBack={view.cosmetics?.cardBack}
-              />
-            ))}
-          </div>
-          <div style={{ opacity: 0.75, marginBottom: 6 }}>
-            {hand.draft?.length === 5
-              ? "Place all 5 into front (3) / middle (5) / back (5)."
-              : "Keep 2, discard 1. Auto-set fills back → middle → front."}
-          </div>
-          <button
-            type="button"
-            className="cs-action raise"
-            style={{ width: "100%", height: 40 }}
-            disabled={busy}
-            onClick={() => void ofcAutoSet()}
-          >
-            AUTO-SET THIS DEAL
-          </button>
-        </div>
-      ) : hand?.mode === "ofc" && hand.result?.rows ? (
-        <div className="cs-ofc">
-          <b>OFC result</b>
-          {hand.result.rows.map((r, i) => (
-            <div key={r.seat ?? i} style={{ opacity: 0.8 }}>
-              Seat {(r.seat ?? i) + 1}
-              {r.fouled ? " · Foul" : ""}
-              {r.fantasyNext ? " · Fantasy next" : ""} · F {r.front} · M{" "}
-              {r.middle} · B {r.back}
-              {r.delta != null ? ` · ${r.delta >= 0 ? "+" : ""}${r.delta}` : ""}
-            </div>
-          ))}
-        </div>
+      {hand?.mode === "ofc" ? (
+        <OfcBoard
+          key={JSON.stringify([hand.handNo, hand.dealRound, hand.toAct])}
+          hand={hand}
+          meSeat={view.meSeat}
+          busy={busy}
+          submit={submitOfc}
+        />
       ) : null}
 
       {/* ---------- controls ---------- */}
@@ -1472,7 +1473,9 @@ export default function TablePage() {
       ) : hand?.mode === "ofc" ? (
         <div className="cs-controls">
           <div className="cs-wait">
-            {hand.toAct === view.meSeat
+            {hand.result
+              ? "Hand complete"
+              : hand.toAct === view.meSeat
               ? "Set your OFC rows above."
               : "Waiting for the other OFC player to set…"}
           </div>

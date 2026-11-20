@@ -110,3 +110,70 @@ test("OFC rejects check-style incomplete first set", () => {
     ]),
   );
 });
+
+test("OFC players alternate each deal and see a complete opening round", () => {
+  const state = startOfcHand(
+    [0, 1, 2].map((seat) => ({ seat, memberId: String(seat), name: String(seat), stack: 1000 })),
+    { handNo: 1, button: 2, unit: 1 },
+  );
+  for (const [seat, count] of [[0, 5], [1, 5], [2, 5], [0, 3], [1, 3], [2, 3]]) {
+    assert.equal(state.toAct, seat);
+    assert.equal(state.draft.length, count);
+    const { placements, discardIndex } = decideOfcBot(state, seat!);
+    applyOfcSet(state, seat!, placements, discardIndex);
+  }
+});
+
+test("OFC rejects an overfilled row without applying partial placements", () => {
+  const state = startOfcHand(
+    [0, 1].map((seat) => ({ seat, memberId: String(seat), name: String(seat), stack: 1000 })),
+    { handNo: 1, button: 1, unit: 1 },
+  );
+  assert.throws(() => applyOfcSet(state, 0, [
+    { cardIndex: 0, row: "back" },
+    ...[1, 2, 3, 4].map((cardIndex) => ({ cardIndex, row: "front" as const })),
+  ]), /front is full/);
+  assert.deepEqual(state.seats[0]?.back, []);
+  assert.deepEqual(state.seats[0]?.front, []);
+  assert.equal(state.draft.length, 5);
+});
+
+test("Joker Ultimate uses two jokers and accepts four Fantasyland discards", () => {
+  const state = startOfcHand(
+    [
+      { seat: 0, memberId: "a", name: "A", stack: 1000, fantasy: 17 },
+      { seat: 1, memberId: "b", name: "B", stack: 1000 },
+    ],
+    { handNo: 1, button: 1, unit: 1, jokerUltimate: true },
+  );
+  assert.equal(state.draft.length, 17);
+  assert.equal([...state.deck, ...state.draft].filter((card) => card.r === 15).length, 2);
+  const { placements, discardIndex } = decideOfcBot(state, 0);
+  assert.equal(placements.length, 13);
+  assert.equal(Array.isArray(discardIndex) && discardIndex.length, 4);
+  applyOfcSet(state, 0, placements, discardIndex);
+  assert.equal(state.toAct, 1);
+  assert.equal(state.draft.length, 5);
+});
+
+test("Joker Ultimate resolves a wild card into valid front trips and retains Fantasyland size", () => {
+  const state = startOfcHand(
+    [
+      { seat: 0, memberId: "a", name: "A", stack: 1000 },
+      { seat: 1, memberId: "b", name: "B", stack: 1000 },
+    ],
+    { handNo: 1, button: 1, unit: 1, jokerUltimate: true },
+  );
+  const player = state.seats[0]!;
+  player.front = [parseCard("Qh"), parseCard("Qd"), { r: 15, s: 0 }];
+  player.middle = ["2c", "3d", "4h", "5s", "6c"].map(parseCard);
+  player.back = ["3h", "6h", "8h", "9h", "Th"].map(parseCard);
+  finishOfc(state);
+  assert.equal(player.fouled, false);
+  assert.equal(player.nextFantasyCards, 17);
+
+  player.inFantasy = true;
+  player.fantasyCards = 15;
+  finishOfc(state);
+  assert.equal(player.nextFantasyCards, 15);
+});

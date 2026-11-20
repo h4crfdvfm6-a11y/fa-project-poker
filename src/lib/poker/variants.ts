@@ -10,7 +10,8 @@ export type GameType =
   | "AOF_NLH"
   | "AOF_PLO"
   | "BOMB_NLH"
-  | "OFC_PINEAPPLE";
+  | "OFC_PINEAPPLE"
+  | "OFC_JOKER_ULTIMATE";
 
 export const GAME_TYPES: GameType[] = [
   "NLH",
@@ -23,6 +24,7 @@ export const GAME_TYPES: GameType[] = [
   "AOF_PLO",
   "BOMB_NLH",
   "OFC_PINEAPPLE",
+  "OFC_JOKER_ULTIMATE",
 ];
 
 export function isGameType(v: string): v is GameType {
@@ -72,7 +74,7 @@ export function isBombPot(game: GameType): boolean {
 }
 
 export function isOfc(game: GameType): boolean {
-  return game === "OFC_PINEAPPLE";
+  return game === "OFC_PINEAPPLE" || game === "OFC_JOKER_ULTIMATE";
 }
 
 export function isHiLo(game: GameType): boolean {
@@ -91,6 +93,7 @@ export function maxSeatsFor(game: GameType): number {
     case "PLO5":
       return 7;
     case "OFC_PINEAPPLE":
+    case "OFC_JOKER_ULTIMATE":
       return 3;
     default:
       return 9;
@@ -119,5 +122,7 @@ export function gameTypeLabel(game: GameType): string {
       return "Bomb Pot Hold'em";
     case "OFC_PINEAPPLE":
       return "Open Face Chinese (Pineapple)";
+    case "OFC_JOKER_ULTIMATE":
+      return "OFC Joker Ultimate";
   }
 }

@@ -18,9 +18,11 @@ export type OfcSeat = {
   front: Card[];
   middle: Card[];
   back: Card[];
-  /** This hand is Fantasyland (14-card set). */
+  /** This hand is Fantasyland, with the deal size carried from qualification. */
   inFantasy: boolean;
-  /** Next hand starts in Fantasyland after QQ+ / trips front. */
+  fantasyCards?: number;
+  nextFantasyCards?: number;
+  /** This board qualifies for Fantasyland on the next hand. */
   fantasyNext: boolean;
   fouled: boolean;
 };
@@ -41,10 +43,11 @@ export type OfcState = {
   handNo: number;
   street: "setting" | "showdown" | "waiting";
   deck: Card[];
+  jokerUltimate?: boolean;
   seats: OfcSeat[];
   button: number;
   toAct: number | null;
-  /** 0 = initial 5-card set; then pineapple 3-card rounds. */
+  /** Turn sequence within the hand, including the opening sets. */
   dealRound: number;
   draft: Card[];
   unit: number;
@@ -85,9 +88,9 @@ export function startOfcHand(
     name: string;
     stack: number;
     isBot?: boolean;
-    fantasy?: boolean;
+    fantasy?: boolean | number;
   }>,
-  opts: { handNo: number; button: number; unit: number },
+  opts: { handNo: number; button: number; unit: number; jokerUltimate?: boolean },
 ): OfcState {
   const seats: OfcSeat[] = seatsIn
     .filter((s) => s.stack > 0)
@@ -101,6 +104,7 @@ export function startOfcHand(
       middle: [],
       back: [],
       inFantasy: Boolean(s.fantasy),
+      fantasyCards: typeof s.fantasy === "number" ? s.fantasy : 14,
       fantasyNext: false,
       fouled: false,
     }));
@@ -108,7 +112,8 @@ export function startOfcHand(
   const state: OfcState = {
     handNo: opts.handNo,
     street: "setting",
-    deck: shuffle(freshDeck()),
+    deck: shuffle(opts.jokerUltimate ? [...freshDeck(), { r: 15, s: 0 }, { r: 15, s: 1 }] : freshDeck()),
+    jokerUltimate: opts.jokerUltimate,
     seats,
     button: opts.button,
     toAct: null,
@@ -125,14 +130,13 @@ export function startOfcHand(
     return state;
   }
 
-  // Progressive set: Fantasyland gets 14; otherwise initial 5, then pineapple 3s.
   const first = nextOfcSeat(state, opts.button) ?? seats[0]!.seat;
   const firstSeat = seats.find((s) => s.seat === first)!;
-  const dealN = firstSeat.inFantasy ? 14 : 5;
+  const dealN = firstSeat.inFantasy ? firstSeat.fantasyCards ?? 14 : 5;
   dealDraft(state, first, dealN);
   pushLog(
     state,
-    `OFC hand #${opts.handNo} · ${firstSeat.inFantasy ? "Fantasyland 14" : "set 5"}`,
+    `OFC hand #${opts.handNo} · ${firstSeat.inFantasy ? `Fantasyland ${dealN}` : "set 5"}`,
   );
   return state;
 }
@@ -153,25 +157,28 @@ function placeCards(
   placements: OfcPlacement[],
 ) {
   const used = new Set<number>();
+  const counts = { front: seat.front.length, middle: seat.middle.length, back: seat.back.length };
   for (const p of placements) {
     if (used.has(p.cardIndex)) throw new Error("Duplicate card");
-    if (p.cardIndex < 0 || p.cardIndex >= draft.length) {
+    if (!Number.isInteger(p.cardIndex) || p.cardIndex < 0 || p.cardIndex >= draft.length) {
       throw new Error("Bad card index");
     }
     used.add(p.cardIndex);
-    const row = seat[p.row];
-    if (row.length >= rowCapacity(p.row)) {
+    if (p.row !== "front" && p.row !== "middle" && p.row !== "back") {
+      throw new Error("Invalid OFC row");
+    }
+    if (++counts[p.row] > rowCapacity(p.row)) {
       throw new Error(`${p.row} is full`);
     }
-    row.push(draft[p.cardIndex]!);
   }
+  for (const p of placements) seat[p.row].push(draft[p.cardIndex]!);
 }
 
 export function applyOfcSet(
   state: OfcState,
   seatNo: number,
   placements: OfcPlacement[],
-  discardIndex: number | null = null,
+  discardIndex: number | number[] | null = null,
 ): OfcState {
   if (state.street !== "setting") throw new Error("Not setting");
   if (state.toAct !== seatNo) throw new Error("Not your turn");
@@ -179,31 +186,18 @@ export function applyOfcSet(
   if (!seat) throw new Error("Seat not found");
 
   const draft = state.draft;
-  if (draft.length === 14) {
-    if (placements.length !== 13) throw new Error("Set 13, discard 1");
-    if (discardIndex == null || discardIndex < 0 || discardIndex > 13) {
-      throw new Error("Discard required");
-    }
-    if (placements.some((p) => p.cardIndex === discardIndex)) {
-      throw new Error("Cannot place discarded card");
-    }
-    placeCards(seat, draft, placements);
-  } else if (draft.length === 5) {
-    if (placements.length !== 5) throw new Error("Set all 5 cards");
-    if (discardIndex != null) throw new Error("No discard on first deal");
-    placeCards(seat, draft, placements);
-  } else if (draft.length === 3) {
-    if (placements.length !== 2) throw new Error("Place 2, discard 1");
-    if (discardIndex == null || discardIndex < 0 || discardIndex > 2) {
-      throw new Error("Discard required");
-    }
-    if (placements.some((p) => p.cardIndex === discardIndex)) {
-      throw new Error("Cannot place discarded card");
-    }
-    placeCards(seat, draft, placements);
-  } else {
-    throw new Error("Nothing to set");
+  const fantasyDeal = draft.length >= 14 && draft.length <= 17;
+  const required = fantasyDeal ? 13 : draft.length === 5 ? 5 : draft.length === 3 ? 2 : 0;
+  if (!required) throw new Error("Nothing to set");
+  const discards = discardIndex === null ? [] : Array.isArray(discardIndex) ? discardIndex : [discardIndex];
+  if (placements.length !== required || discards.length !== draft.length - required) {
+    throw new Error(`Place ${required}, discard ${draft.length - required}`);
   }
+  if (new Set(discards).size !== discards.length || discards.some(
+    (index) => !Number.isInteger(index) || index < 0 || index >= draft.length ||
+      placements.some((placement) => placement.cardIndex === index),
+  )) throw new Error("Invalid OFC discard");
+  placeCards(seat, draft, placements);
 
   state.draft = [];
   pushLog(
@@ -216,11 +210,7 @@ export function applyOfcSet(
     return state;
   }
 
-  // Same player may need another pineapple deal, else next incomplete seat.
-  const sameNeedsMore = setCount(seat) < 13;
-  const next = sameNeedsMore
-    ? seatNo
-    : nextOfcSeat(state, seatNo) ?? nextOfcSeat(state, state.button);
+  const next = nextOfcSeat(state, seatNo);
   if (next == null) {
     finishOfc(state);
     return state;
@@ -228,14 +218,14 @@ export function applyOfcSet(
   state.dealRound += 1;
   const nextSeat = state.seats.find((s) => s.seat === next)!;
   const dealN =
-    setCount(nextSeat) === 0 ? (nextSeat.inFantasy ? 14 : 5) : 3;
+    setCount(nextSeat) === 0 ? (nextSeat.inFantasy ? nextSeat.fantasyCards ?? 14 : 5) : 3;
   dealDraft(state, next, dealN);
   return state;
 }
 
 function scoreFrontRoyalties(score: HandScore): number {
   const cat = score[0] ?? 0;
-  if (cat >= 3) return 10 + Math.max(0, (score[1] ?? 0) - 2); // trips 66+=10…
+  if (cat >= 3) return 10 + Math.max(0, (score[1] ?? 0) - 2); // trips 222=10 … AAA=22
   if (cat === 1) {
     const pair = score[1] ?? 0;
     if (pair < 6) return 0;
@@ -255,31 +245,74 @@ function scoreFiveRoyalties(score: HandScore, middle: boolean): number {
   return table[cat] ?? 0;
 }
 
-function isFoul(seat: OfcSeat): boolean {
-  if (seat.front.length !== 3 || seat.middle.length !== 5 || seat.back.length !== 5) {
-    return true;
-  }
-  const f = evaluateThree(seat.front);
-  const m = evaluateFive(seat.middle);
-  const b = evaluateFive(seat.back);
-  // back >= middle >= front
-  if (cmpScore(b, m) < 0) return true;
-  if (cmpScore(m, f) < 0) return true;
-  return false;
+type BoardScores = { front: HandScore; middle: HandScore; back: HandScore };
+
+function inOrder({ front, middle, back }: BoardScores) {
+  return cmpScore(back, middle) >= 0 && cmpScore(middle, front) >= 0;
 }
 
-function qualifiesFantasy(seat: OfcSeat): boolean {
-  if (seat.fouled) return false;
-  const f = evaluateThree(seat.front);
-  if ((f[0] ?? 0) >= 3) return true; // trips
-  if ((f[0] ?? 0) === 1 && (f[1] ?? 0) >= 12) return true; // QQ+
-  return false;
+function royalties({ front, middle, back }: BoardScores) {
+  return scoreFrontRoyalties(front) + scoreFiveRoyalties(middle, true) + scoreFiveRoyalties(back, false);
+}
+
+function scoreBoard(seat: OfcSeat): BoardScores | null {
+  if (seat.front.length !== 3 || seat.middle.length !== 5 || seat.back.length !== 5) return null;
+  const cards = [...seat.front, ...seat.middle, ...seat.back];
+  const wilds = cards.flatMap((card, index) => card.r === 15 ? [index] : []);
+  const score = (): BoardScores => ({
+    front: evaluateThree(cards.slice(0, 3)),
+    middle: evaluateFive(cards.slice(3, 8)),
+    back: evaluateFive(cards.slice(8)),
+  });
+  if (!wilds.length) return score();
+  // Choose distinct substitutes that keep the board valid, then maximize royalties.
+  const natural = new Set(cards.filter((card) => card.r !== 15).map(cardId));
+  const candidates = freshDeck().filter((card) => !natural.has(cardId(card)));
+  let best: BoardScores | null = null;
+
+  function tryWild(depth: number, previous?: Card) {
+    const index = wilds[depth];
+    if (index !== undefined) {
+      for (const card of candidates) {
+        if (card === previous) continue;
+        cards[index] = card;
+        tryWild(depth + 1, card);
+      }
+      return;
+    }
+    const next = score();
+    if (!inOrder(next)) return;
+    const improvement = best && (
+      royalties(next) - royalties(best) ||
+      cmpScore(next.back, best.back) ||
+      cmpScore(next.middle, best.middle) ||
+      cmpScore(next.front, best.front)
+    );
+    if (improvement === null || improvement > 0) best = next;
+  }
+
+  tryWild(0);
+  return best;
+}
+
+function nextFantasySize(seat: OfcSeat, score: BoardScores, ultimate: boolean) {
+  const [category, rank] = score.front;
+  if (seat.inFantasy) {
+    const stays = category === 3 || (score.back[0] ?? 0) >= 7;
+    return stays ? (ultimate ? seat.fantasyCards ?? 14 : 14) : 0;
+  }
+  if (category === 3) return ultimate ? 17 : 14;
+  if (category === 1 && (rank ?? 0) >= 12) return ultimate ? (rank ?? 14) + 2 : 14;
+  return 0;
 }
 
 export function finishOfc(state: OfcState) {
-  for (const s of state.seats) {
-    s.fouled = isFoul(s);
-    s.fantasyNext = qualifiesFantasy(s);
+  const scores = new Map(state.seats.map((seat) => [seat, scoreBoard(seat)]));
+  for (const seat of state.seats) {
+    const score = scores.get(seat);
+    seat.fouled = !score || !inOrder(score);
+    seat.nextFantasyCards = score && !seat.fouled ? nextFantasySize(seat, score, Boolean(state.jokerUltimate)) : 0;
+    seat.fantasyNext = seat.nextFantasyCards > 0;
   }
 
   const deltas: Record<string, number> = {};
@@ -294,16 +327,12 @@ export function finishOfc(state: OfcState) {
       if (a.fouled && b.fouled) {
         pts = 0;
       } else if (a.fouled) {
-        pts = -6; // foul pays 6 to clean player (3 rows + scoop)
+        pts = -6 - royalties(scores.get(b)!);
       } else if (b.fouled) {
-        pts = 6;
+        pts = 6 + royalties(scores.get(a)!);
       } else {
-        const af = evaluateThree(a.front);
-        const bf = evaluateThree(b.front);
-        const am = evaluateFive(a.middle);
-        const bm = evaluateFive(b.middle);
-        const ab = evaluateFive(a.back);
-        const bb = evaluateFive(b.back);
+        const { front: af, middle: am, back: ab } = scores.get(a)!;
+        const { front: bf, middle: bm, back: bb } = scores.get(b)!;
         let wins = 0;
         if (cmpScore(af, bf) > 0) wins += 1;
         else if (cmpScore(af, bf) < 0) wins -= 1;
@@ -345,10 +374,10 @@ export function finishOfc(state: OfcState) {
     rows: state.seats.map((s) => ({
       memberId: s.memberId,
       front:
-        s.front.length === 3 ? handName(evaluateThree(s.front)) : "incomplete",
+        scores.get(s) ? handName(scores.get(s)!.front) : s.fouled ? "foul" : "incomplete",
       middle:
-        s.middle.length === 5 ? handName(evaluateFive(s.middle)) : "incomplete",
-      back: s.back.length === 5 ? handName(evaluateFive(s.back)) : "incomplete",
+        scores.get(s) ? handName(scores.get(s)!.middle) : s.fouled ? "foul" : "incomplete",
+      back: scores.get(s) ? handName(scores.get(s)!.back) : s.fouled ? "foul" : "incomplete",
       fouled: s.fouled,
       fantasyNext: s.fantasyNext,
     })),
@@ -363,15 +392,16 @@ export function finishOfc(state: OfcState) {
 export function decideOfcBot(
   state: OfcState,
   seatNo: number,
-): { placements: OfcPlacement[]; discardIndex: number | null } {
+): { placements: OfcPlacement[]; discardIndex: number | number[] | null } {
   const seat = state.seats.find((s) => s.seat === seatNo)!;
   const draft = state.draft;
   const ranked = draft
     .map((c, i) => ({ c, i }))
     .sort((a, b) => b.c.r - a.c.r);
 
-  if (draft.length === 14) {
-    const discardIndex = ranked[13]!.i;
+  if (draft.length >= 14) {
+    const discards = ranked.slice(13).map(({ i }) => i);
+    const discardIndex = discards.length === 1 ? discards[0]! : discards;
     const keep = ranked.slice(0, 13);
     // Fill back 5, middle 5, front 3 from strongest kept cards.
     const rows: OfcRow[] = [
@@ -422,8 +452,8 @@ function repairPlacements(
   seat: OfcSeat,
   draft: Card[],
   placements: OfcPlacement[],
-  discardIndex: number | null,
-): { placements: OfcPlacement[]; discardIndex: number | null } {
+  discardIndex: number | number[] | null,
+): { placements: OfcPlacement[]; discardIndex: number | number[] | null } {
   const copy = {
     front: [...seat.front],
     middle: [...seat.middle],
@@ -447,5 +477,5 @@ function repairPlacements(
 }
 
 export function serializeOfcCards(cards: Card[]) {
-  return cards.map(cardId);
+  return cards.map((card) => card.r === 15 ? `j${card.s}` : cardId(card));
 }

@@ -19,7 +19,9 @@ export async function POST(
     type?: ActionType | "ofc_set";
     amount?: number;
     placements?: OfcPlacement[];
-    discardIndex?: number | null;
+    discardIndex?: number | number[] | null;
+    handNo?: number;
+    dealRound?: number;
   };
   try {
     if (body.type === "ofc_set") {
@@ -29,6 +31,9 @@ export async function POST(
           playerId,
           body.placements || [],
           body.discardIndex ?? null,
+          body.handNo != null && body.dealRound != null
+            ? { handNo: body.handNo, dealRound: body.dealRound }
+            : undefined,
         ),
       );
     }
