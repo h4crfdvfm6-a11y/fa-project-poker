@@ -1,0 +1,30 @@
+/* Room around the table (felt-choice.tsx RoomPicker sets <html data-room>).
+   Same table and angle; each room has a picture per felt colour. */
+html[data-room="reef"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef.jpg") center top / cover no-repeat, #000; }
+html[data-room="reef"][data-felt="blue"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef-blue.jpg") center top / cover no-repeat, #000; }
+html[data-room="reef"][data-felt="red"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef-red.jpg") center top / cover no-repeat, #000; }
+html[data-room="reef"][data-felt="charcoal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef-charcoal.jpg") center top / cover no-repeat, #000; }
+html[data-room="reef"][data-felt="purple"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef-purple.jpg") center top / cover no-repeat, #000; }
+html[data-room="reef"][data-felt="teal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-reef-teal.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"][data-felt="blue"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse-blue.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"][data-felt="red"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse-red.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"][data-felt="charcoal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse-charcoal.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"][data-felt="purple"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse-purple.jpg") center top / cover no-repeat, #000; }
+html[data-room="lighthouse"][data-felt="teal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-lighthouse-teal.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"][data-felt="blue"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove-blue.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"][data-felt="red"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove-red.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"][data-felt="charcoal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove-charcoal.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"][data-felt="purple"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove-purple.jpg") center top / cover no-repeat, #000; }
+html[data-room="cove"][data-felt="teal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-cove-teal.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"][data-felt="blue"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship-blue.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"][data-felt="red"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship-red.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"][data-felt="charcoal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship-charcoal.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"][data-felt="purple"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship-purple.jpg") center top / cover no-repeat, #000; }
+html[data-room="ship"][data-felt="teal"] .cs-room { background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.18)), url("/banners/room-ship-teal.jpg") center top / cover no-repeat, #000; }
+
+/* Green and blue card backs (made from the Amber design). */
+html[data-deck="green"] .cs-room .cs-card.back { background: #fff url("/_next/image?url=%2Fbanners%2Fcard-back-green.png&w=128&q=75") center / cover no-repeat; }
+html[data-deck="blue"] .cs-room .cs-card.back { background: #fff url("/_next/image?url=%2Fbanners%2Fcard-back-blue.png&w=128&q=75") center / cover no-repeat; }

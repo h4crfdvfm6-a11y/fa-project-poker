@@ -44,6 +44,8 @@ export const DECKS = [
   { id: "silver", label: "Silver", src: "/banners/Silver compass scrollwork card back-2.png" },
   { id: "coral", label: "Coral", src: "/banners/Coral Victorian Compass Card Back-2.png" },
   { id: "amber", label: "Amber", src: "/banners/Amber Victorian compass card back-3.png" },
+  { id: "green", label: "Green", src: "/banners/card-back-green.png" },
+  { id: "blue", label: "Blue", src: "/banners/card-back-blue.png" },
 ] as const;
 
 export const DECK_KEY = "sc_deck";
