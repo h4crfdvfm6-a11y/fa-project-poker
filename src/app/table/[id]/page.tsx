@@ -287,6 +287,9 @@ export default function TablePage() {
     mine: null,
   });
   const [now, setNow] = useState(() => Date.now());
+  // pre-action: tick CHECK / FOLD before your turn (hand number it was ticked for)
+  const [preCheckFold, setPreCheckFold] = useState<number | null>(null);
+  const preFired = useRef("");
 
   const load = useCallback(async () => {
     if (isDemo) {
@@ -682,6 +685,28 @@ export default function TablePage() {
     if (json.emojis) setEmojis(json.emojis);
   }
 
+  // when your turn comes with CHECK / FOLD ticked: check if free, otherwise fold
+  useEffect(() => {
+    if (preCheckFold == null) return;
+    const h = view?.hand;
+    if (!h || h.handNo !== preCheckFold) {
+      setPreCheckFold(null);
+      return;
+    }
+    const mine = h.seats.find((s) => s.seat === view?.meSeat);
+    if (!mine || mine.folded || mine.allIn) {
+      setPreCheckFold(null);
+      return;
+    }
+    if (h.toAct !== view?.meSeat || !view?.actions.length || busy) return;
+    const key = `${h.handNo}:${h.street}:${h.currentBet}`;
+    if (preFired.current === key) return;
+    preFired.current = key;
+    setPreCheckFold(null);
+    void act(view.actions.some((a) => a.type === "check") ? "check" : "fold");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, preCheckFold, busy]);
+
   if (!view) {
     return (
       <main className="cs-room" style={SKIN_VARS}>
@@ -750,6 +775,19 @@ export default function TablePage() {
   const betsOnTable = handSeats.reduce((sum, s) => sum + (s.bet || 0), 0);
   const totalPot = (hand?.pot ?? 0) + betsOnTable;
   const myTurn = seated && hand?.toAct === view.meSeat && view.actions.length > 0;
+  // you're in this hand, it isn't your turn yet, and betting is still going on
+  const preEligible =
+    seated &&
+    !isDemo &&
+    !myTurn &&
+    hand?.mode !== "ofc" &&
+    !hand?.result &&
+    hand?.street !== "waiting" &&
+    hand?.street !== "showdown" &&
+    hand?.toAct != null &&
+    Boolean(me?.hole?.length) &&
+    !me?.folded &&
+    !me?.allIn;
   const occupied = view.seats.filter((s) => !s.empty).length;
   const winners = hand?.result?.winners ?? [];
   const winnerOf = (seatNo: number) => winners.find((w) => w.seat === seatNo);
@@ -1252,14 +1290,33 @@ export default function TablePage() {
             </div>
           ) : (
           <div className="cs-actions">
-            <button
-              type="button"
-              className="cs-action fold"
-              disabled={busy || !myTurn || !foldAction}
-              onClick={() => act("fold")}
-            >
-              FOLD
-            </button>
+            {preEligible ? (
+              // not your turn yet: tick CHECK / FOLD (like GG Poker)
+              <button
+                type="button"
+                className="cs-action fold"
+                style={
+                  preCheckFold === hand?.handNo
+                    ? { boxShadow: "0 0 0 3px #ffd34d", color: "#ffd34d" }
+                    : undefined
+                }
+                onClick={() =>
+                  setPreCheckFold(preCheckFold === hand?.handNo ? null : (hand?.handNo ?? null))
+                }
+              >
+                {preCheckFold === hand?.handNo ? "☑" : "☐"} CHECK
+                <br />/ FOLD
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cs-action fold"
+                disabled={busy || !myTurn || !foldAction}
+                onClick={() => act("fold")}
+              >
+                FOLD
+              </button>
+            )}
             <button
               type="button"
               className="cs-action call"
