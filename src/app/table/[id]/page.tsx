@@ -66,6 +66,7 @@ type TableView = {
     name: string;
     stack: number;
     isBot: boolean;
+    sittingOut?: boolean;
     empty: boolean;
   }>;
   hand: null | {
@@ -122,8 +123,14 @@ type TableView = {
     /** the cards that make that hand (yours + board) — they blink gold */
     madeCards?: string[];
   };
-  /** ms the player to act has left before the 30 s timer acts for them */
+  /** ms the player to act has left (10 s pre-flop / 15 s after, + a Time Bank card) */
   actionMsLeft?: number | null;
+  /** the whole time for this decision, so the ring empties evenly */
+  actionTotalMs?: number | null;
+  /** a free Time Bank card (+10 s) is being used right now */
+  timeBankInUse?: boolean;
+  /** your free Time Bank cards left */
+  timeBank?: number | null;
   cosmetics?: null | { avatar: string; felt: string; cardBack: string };
   actions: Array<{ type: string; label: string; amount?: number }>;
   sizing: null | {
@@ -428,7 +435,7 @@ export default function TablePage() {
     const key = `${h.handNo}:${h.street}:${h.toAct}:${h.currentBet}`;
     if (key !== clockKey.current) {
       clockKey.current = key;
-      setDeadline(Date.now() + (view?.actionMsLeft ?? 30_000));
+      setDeadline(Date.now() + (view?.actionMsLeft ?? 15_000));
     } else if (view?.actionMsLeft != null) {
       setDeadline(Date.now() + view.actionMsLeft);
     }
@@ -516,7 +523,8 @@ export default function TablePage() {
     const res = await fetch(`/api/table/${tableId}/show`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ cards }),
+      // the hand you're looking at, so a late tap can't land on the next hand
+      body: JSON.stringify({ cards, handNo: view?.hand?.handNo }),
     });
     const json = await res.json().catch(() => ({}));
     setBusy(false);
@@ -541,6 +549,28 @@ export default function TablePage() {
     setBusy(false);
     if (!res.ok) {
       setError(json.error || "Could not change straddle");
+      return;
+    }
+    await load();
+  }
+
+  /** sit out from the next hand, or come back */
+  async function setSitOut(out: boolean) {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/table/${tableId}/sitout`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ out }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(json.error || "Could not change sit out");
       return;
     }
     await load();
@@ -669,8 +699,15 @@ export default function TablePage() {
     clockLeft != null && seatNo != null && hand?.toAct === seatNo
       ? {
           className: "turn-clock",
-          style: { "--turn-progress": Math.min(1, clockLeft / 30_000) } as CSSProperties,
-          badge: <span className="turn-seconds">{Math.ceil(clockLeft / 1000)}</span>,
+          style: {
+            "--turn-progress": Math.min(1, clockLeft / (view.actionTotalMs || 15_000)),
+          } as CSSProperties,
+          badge: (
+            <span className={`turn-seconds ${view.timeBankInUse ? "bank" : ""}`}>
+              {view.timeBankInUse ? "⏱" : ""}
+              {Math.ceil(clockLeft / 1000)}
+            </span>
+          ),
         }
       : { className: "", style: undefined, badge: null };
 
@@ -708,6 +745,8 @@ export default function TablePage() {
       shownSet.has(c) ? [...shownSet].filter((x) => x !== c) : [...shownSet, c],
     );
   const meSeatInfo = view.seats.find((s) => s.seat === view.meSeat);
+  // sitting out (cash tables): you're dealt in again from the next hand after "I'm back"
+  const meSittingOut = Boolean(meSeatInfo?.sittingOut);
   const betsOnTable = handSeats.reduce((sum, s) => sum + (s.bet || 0), 0);
   const totalPot = (hand?.pot ?? 0) + betsOnTable;
   const myTurn = seated && hand?.toAct === view.meSeat && view.actions.length > 0;
@@ -947,6 +986,8 @@ export default function TablePage() {
                 <div className="st">{fmt(live?.stack ?? seat.stack)}</div>
                 {live?.allIn ? (
                   <div className="bt allin">ALL-IN</div>
+                ) : seat.sittingOut && !live?.hole?.length ? (
+                  <div className="bt">SITTING OUT</div>
                 ) : seat.memberId && view.squid?.scores?.[seat.memberId] ? (
                   <div className="bt">
                     🦑 {view.squid.scores[seat.memberId]}/{view.squid.target}
@@ -1011,6 +1052,8 @@ export default function TablePage() {
                 <div className="bt allin">FOLDED</div>
               ) : me?.allIn ? (
                 <div className="bt allin">ALL-IN</div>
+              ) : meSittingOut ? (
+                <div className="bt">SITTING OUT</div>
               ) : null}
               {view.meSeat != null && winnerOf(view.meSeat) ? (
                 <div className="cs-winner">
@@ -1161,7 +1204,19 @@ export default function TablePage() {
             </button>
           </div>
 
-          {canShow ? (
+          {meSittingOut && !me?.hole?.length && !canShow ? (
+            <div className="cs-actions">
+              <button
+                type="button"
+                className="cs-action call"
+                style={{ gridColumn: "1 / -1" }}
+                disabled={busy}
+                onClick={() => void setSitOut(false)}
+              >
+                I&apos;M BACK — DEAL ME IN
+              </button>
+            </div>
+          ) : canShow ? (
             <div className="cs-show">
               <span>SHOW</span>
               {me!.hole.map((c) => (
@@ -1330,6 +1385,25 @@ export default function TablePage() {
             <DeckPicker />
 
             <h3>Seat</h3>
+            {seated && !isTournament ? (
+              <div className="cs-sheet-row">
+                <button
+                  type="button"
+                  className="cs-sheet-btn"
+                  style={meSittingOut ? TICKED : undefined}
+                  disabled={busy}
+                  onClick={() => void setSitOut(!meSittingOut)}
+                >
+                  {meSittingOut ? "☑ Sitting out — tap to come back" : "☐ Sit out next hand"}
+                </button>
+              </div>
+            ) : null}
+            {seated && view.timeBank != null ? (
+              <div style={{ color: "#9ea8b8", margin: "2px 0 8px" }}>
+                ⏱ Time bank: <b style={{ color: "#ffd34d" }}>{view.timeBank}</b> free cards (+10 s
+                each, used automatically when your time runs out · 1 more every 25 hands · max 12)
+              </div>
+            ) : null}
             <div className="cs-sheet-row">
               <Link href="/lobby" className="cs-sheet-btn grid place-items-center">
                 ← Back to lobby
