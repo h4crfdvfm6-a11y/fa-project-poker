@@ -14,12 +14,13 @@ export async function POST(
   if (!playerId) {
     return Response.json({ error: "Not logged in" }, { status: 401 });
   }
-  const body = (await request.json().catch(() => ({}))) as { cards?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { cards?: unknown; handNo?: unknown };
   const cards = Array.isArray(body.cards)
     ? body.cards.filter((c): c is string => typeof c === "string").slice(0, 7)
     : [];
   try {
-    const shown = await setShownCards(id, playerId, cards);
+    const handNo = typeof body.handNo === "number" ? body.handNo : undefined;
+    const shown = await setShownCards(id, playerId, cards, handNo);
     return Response.json({ shown });
   } catch (error) {
     return Response.json(
