@@ -49,3 +49,13 @@ export const DECKS = [
 ] as const;
 
 export const DECK_KEY = "sc_deck";
+
+/** Card fronts (GG-style faces). "classic" (black and red on white) is the standard. */
+export const FACES = [
+  { id: "classic", label: "Classic" },
+  { id: "four", label: "Four colours" },
+  { id: "colour", label: "Coloured cards" },
+  { id: "gold", label: "Gold" },
+] as const;
+
+export const FACE_KEY = "sc_face";

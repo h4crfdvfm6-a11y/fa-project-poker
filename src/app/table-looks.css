@@ -28,3 +28,110 @@ html[data-room="ship"][data-felt="teal"] .cs-room { background: linear-gradient(
 /* Green and blue card backs (made from the Amber design). */
 html[data-deck="green"] .cs-room .cs-card.back { background: #fff url("/_next/image?url=%2Fbanners%2Fcard-back-green.png&w=128&q=75") center / cover no-repeat; }
 html[data-deck="blue"] .cs-room .cs-card.back { background: #fff url("/_next/image?url=%2Fbanners%2Fcard-back-blue.png&w=128&q=75") center / cover no-repeat; }
+
+/* ---------- Card fronts (GG-style): rank top-left, small suit under it, big suit
+   bottom-right. Styles chosen in the ☰ menu (looks-menu.tsx sets <html data-face>):
+   classic (standard, black/red), four (four-colour), colour (coloured cards),
+   gold (gold card, black/red). ---------- */
+.cs-room .cs-card:not(.back) {
+  --ink: #111;
+  color: var(--ink);
+  background: #fff;
+  font-family: var(--font-card), "Roboto Condensed", "Arial Narrow", sans-serif;
+  overflow: hidden;
+  border-radius: 7%;
+}
+.cs-room .cs-card.red:not(.back) {
+  --ink: #d5121e;
+}
+.cs-room .cs-card .r {
+  left: 6%;
+  top: 0;
+  font-family: inherit;
+  font-size: 56cqw;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+.cs-room .cs-card .ss {
+  position: absolute;
+  left: 8%;
+  top: 47cqw;
+  width: 27cqw;
+  height: 27cqw;
+}
+.cs-room .cs-card .s {
+  left: auto;
+  top: auto;
+  right: 4cqw;
+  bottom: 4cqw;
+  transform: none;
+  width: 64cqw;
+  height: 64cqw;
+}
+.cs-room .cs-card .ss svg,
+.cs-room .cs-card .s svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.cs-room .cs-card .rb {
+  display: none;
+}
+
+/* four-colour: clubs green, diamonds blue, hearts red, spades black */
+html[data-face="four"] .cs-room .cs-card.suit-c { --ink: #129a3c; }
+html[data-face="four"] .cs-room .cs-card.suit-d { --ink: #1652d3; }
+
+/* coloured cards: the whole card in the suit colour, white rank and suits,
+   a big rank bottom-right */
+html[data-face="colour"] .cs-room .cs-card:not(.back) {
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+}
+html[data-face="colour"] .cs-room .cs-card.suit-c { background: linear-gradient(160deg, #2fa64a, #127a2c); }
+html[data-face="colour"] .cs-room .cs-card.suit-d { background: linear-gradient(160deg, #2b6be0, #123fa6); }
+html[data-face="colour"] .cs-room .cs-card.suit-h { background: linear-gradient(160deg, #e2333d, #a8101b); }
+html[data-face="colour"] .cs-room .cs-card.suit-s { background: linear-gradient(160deg, #3a3a3e, #121214); }
+html[data-face="colour"] .cs-room .cs-card .s { display: none; }
+html[data-face="colour"] .cs-room .cs-card .rb {
+  display: block;
+  position: absolute;
+  right: 6cqw;
+  bottom: 2cqw;
+  font-size: 66cqw;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+/* gold cards: gold face, black and red */
+html[data-face="gold"] .cs-room .cs-card:not(.back) {
+  background: linear-gradient(135deg, #fbf3c8 0%, #e9cf7a 40%, #c9a54a 75%, #f3e2a0 100%);
+}
+
+/* menu tiles for the card-front choice (a little ace of clubs in each style) */
+.cs-face-tile {
+  position: relative;
+  font-family: var(--font-card), "Roboto Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  background: #fff;
+  color: #111;
+}
+.cs-face-tile span:first-child {
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  font-size: 15px;
+}
+.cs-face-tile span:last-child {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 22px;
+}
+.cs-face-tile.face-four { color: #129a3c; }
+.cs-face-tile.face-colour { background: linear-gradient(160deg, #2fa64a, #127a2c); color: #fff; }
+.cs-face-tile.face-gold { background: linear-gradient(135deg, #fbf3c8 0%, #e9cf7a 40%, #c9a54a 75%, #f3e2a0 100%); }
