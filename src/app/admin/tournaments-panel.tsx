@@ -8,6 +8,7 @@ type Tournament = {
   id: string;
   title: string;
   kind?: string;
+  rebuy_until_level?: number;
   game_type?: string;
   status: string;
   buy_in: string | number;
@@ -48,6 +49,7 @@ export function TournamentsPanel() {
     startingStack: "10000",
     maxPlayers: "9",
     blindMinutes: "10",
+    rebuyUntilLevel: "0",
   });
 
   const load = useCallback(async () => {
@@ -80,6 +82,7 @@ export function TournamentsPanel() {
         startingStack: Number(form.startingStack),
         maxPlayers: form.kind === "spin" ? 3 : Number(form.maxPlayers),
         blindMinutes: Number(form.blindMinutes),
+        rebuyUntilLevel: form.kind === "spin" ? 0 : Number(form.rebuyUntilLevel),
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -170,6 +173,14 @@ export function TournamentsPanel() {
           {form.kind === "spin" ? null : field("maxPlayers", `Max players (2–${seatCap})`)}
           {form.kind === "spin" ? null : field("blindMinutes", "Minutes per blind level")}
         </div>
+        {form.kind !== "spin" ? <div>
+          <label className="label" htmlFor="rebuy-until">Rebuys</label>
+          <select id="rebuy-until" className="field" value={form.rebuyUntilLevel} onChange={(e) => setForm((s) => ({ ...s, rebuyUntilLevel: e.target.value }))}>
+            <option value="0">Freezeout — no rebuys</option>
+            {Array.from({ length: 17 }, (_, i) => <option key={i + 1} value={i + 1}>Rebuys through level {i + 1}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-[var(--muted)]">Original buy-in + fee for a starting stack after busting. Players have 30 seconds to rebuy at their seat.</p>
+        </div> : null}
         {error ? <p className="text-sm text-[#ffb4b6]">{error}</p> : null}
         <button className="btn btn-gold" type="submit" disabled={busy}>
           Create
@@ -199,6 +210,7 @@ export function TournamentsPanel() {
                   {t.status !== "scheduled" && Number(t.prize_pool ?? 0) > 0
                     ? ` · Prize ${money(t.prize_pool!)}`
                     : ""}
+                  {t.rebuy_until_level ? ` · Rebuy through level ${t.rebuy_until_level}` : ""}
                   {t.spin_multiplier ? ` · ×${t.spin_multiplier}` : ""}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">

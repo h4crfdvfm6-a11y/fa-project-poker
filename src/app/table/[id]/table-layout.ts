@@ -63,6 +63,17 @@ export function seatPoint(slot: number, count: number): SeatPoint {
   return { x, y, side, left: edgeLeft(x) };
 }
 
+/** A separate dealer puck on the felt, beside the dealer's cards and bet. */
+export function dealerPoint(slot: number, count: number) {
+  const p = seatPoint(slot, count);
+  if (slot === 0) return { left: "31%", top: 84 };
+  if (p.y < 30) return { left: `${p.x + (p.x > 50 ? -10 : 10)}%`, top: p.y + 10 };
+  return {
+    left: `calc(${p.left} ${p.x < 50 ? "+" : "-"} (var(--seat-half) + 12px))`,
+    top: p.y - 2,
+  };
+}
+
 export type BetPoint = {
   left: string;
   top: number;

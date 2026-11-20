@@ -34,7 +34,6 @@ export function FeltPicker() {
   }
 
   return (
-    <>
     <div className="flex flex-wrap gap-2">
       {FELTS.map((f) => (
         <button
@@ -55,10 +54,6 @@ export function FeltPicker() {
       ))}
     </div>
 
-    {/* The room choice sits right under the table colours in the ☰ menu. */}
-    <h3>Room</h3>
-    <RoomPicker />
-    </>
   );
 }
 

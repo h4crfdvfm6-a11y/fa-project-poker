@@ -11,16 +11,24 @@ import {
 } from "react";
 import {
   playSound,
+  listenForSoundUnlock,
+  unlockSounds,
   setSoundsMuted,
   soundForAction,
   soundsMuted,
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
-import { FeltPicker } from "../../felt-choice";
+import { FeltPicker, RoomPicker } from "../../felt-choice";
 import { avatarSrc, defaultAvatar, sized } from "@/lib/looks";
 import { AvatarPicker, DeckPicker, FacePicker } from "./looks-menu";
 import "./table-skin.css";
-import { betPoint, demoView, potStacks, seatPoint } from "./table-layout";
+import {
+  betPoint,
+  dealerPoint,
+  demoView,
+  potStacks,
+  seatPoint,
+} from "./table-layout";
 
 type TableView = {
   meMemberId: string | null;
@@ -133,6 +141,17 @@ type TableView = {
   timeBank?: number | null;
   /** chips you asked to add, waiting for the next deal */
   addonPending?: number;
+  rebuy?: null | {
+    enabled: boolean;
+    untilLevel: number;
+    cost: number;
+    chips: number;
+    deadline: number | null;
+    offered: boolean;
+    canRebuy: boolean;
+    reason: string;
+  };
+  rebuyWaiting?: boolean;
   cosmetics?: null | { avatar: string; felt: string; cardBack: string };
   actions: Array<{ type: string; label: string; amount?: number }>;
   sizing: null | {
@@ -178,7 +197,11 @@ const SKIN_VARS = {
 } as CSSProperties;
 
 /** gold edge for a ticked menu option */
-const TICKED: CSSProperties = { borderColor: "#ffd34d", color: "#ffd34d", fontWeight: 800 };
+const TICKED: CSSProperties = {
+  borderColor: "#ffd34d",
+  color: "#ffd34d",
+  fontWeight: 800,
+};
 
 const SUITS: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
@@ -196,8 +219,14 @@ function PlayingCard({
 }) {
   if (card === "xx") {
     // Default back = Shark Club logo; bought card backs keep their cosmetic colour.
-    const custom = cardBack !== "back_navy" ? CARD_BACK_STYLES[cardBack] : undefined;
-    return <div className="cs-card back" style={custom ? { background: custom } : undefined} />;
+    const custom =
+      cardBack !== "back_navy" ? CARD_BACK_STYLES[cardBack] : undefined;
+    return (
+      <div
+        className="cs-card back"
+        style={custom ? { background: custom } : undefined}
+      />
+    );
   }
   const suit = card[1]!;
   const red = suit === "h" || suit === "d";
@@ -263,6 +292,15 @@ export default function TablePage() {
   const [busy, setBusy] = useState(false);
   const [muted, setMuted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuSection, setMenuSection] = useState("seat");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => listenForSoundUnlock(), []);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const [emojis, setEmojis] = useState<string[]>([
     "😂",
     "😎",
@@ -284,7 +322,10 @@ export default function TablePage() {
   const clockKey = useRef<string>("");
   const [deadline, setDeadline] = useState<number | null>(null);
   // avatars the players here chose (seat → id) and yours
-  const [avatars, setAvatars] = useState<{ bySeat: Record<string, string>; mine: string | null }>({
+  const [avatars, setAvatars] = useState<{
+    bySeat: Record<string, string>;
+    mine: string | null;
+  }>({
     bySeat: {},
     mine: null,
   });
@@ -344,9 +385,12 @@ export default function TablePage() {
 
   const loadAvatars = useCallback(async () => {
     if (isDemo) return;
-    const res = await fetch(`/api/table/${tableId}/avatars`, { cache: "no-store" }).catch(() => null);
+    const res = await fetch(`/api/table/${tableId}/avatars`, {
+      cache: "no-store",
+    }).catch(() => null);
     const json = res?.ok ? await res.json().catch(() => null) : null;
-    if (json) setAvatars({ bySeat: json.bySeat ?? {}, mine: json.mine ?? null });
+    if (json)
+      setAvatars({ bySeat: json.bySeat ?? {}, mine: json.mine ?? null });
   }, [tableId, isDemo]);
 
   useEffect(() => {
@@ -389,7 +433,11 @@ export default function TablePage() {
       if (lastHandNo.current != null) playSound("deal");
       lastHandNo.current = handNo;
     }
-    if (view?.hand?.result && handNo != null && lastWinHandNo.current !== handNo) {
+    if (
+      view?.hand?.result &&
+      handNo != null &&
+      lastWinHandNo.current !== handNo
+    ) {
       lastWinHandNo.current = handNo;
       playSound("win");
     }
@@ -422,10 +470,16 @@ export default function TablePage() {
       }
     }
     // the player to act passed without betting or folding: a check
-    if (!played && a.toAct != null && a.toAct !== b.toAct && a.toAct !== view?.meSeat) {
+    if (
+      !played &&
+      a.toAct != null &&
+      a.toAct !== b.toAct &&
+      a.toAct !== view?.meSeat
+    ) {
       const was = b.seats.find((x) => x.seat === a.toAct);
       const before = a.seats.find((x) => x.seat === a.toAct);
-      if (was && before && !was.folded && was.bet === before.bet) playSound("check");
+      if (was && before && !was.folded && was.bet === before.bet)
+        playSound("check");
     }
   }, [view]);
 
@@ -433,7 +487,11 @@ export default function TablePage() {
   useEffect(() => {
     const h = view?.hand;
     const live =
-      h && h.toAct != null && h.street !== "showdown" && h.street !== "waiting" && !h.result;
+      h &&
+      h.toAct != null &&
+      h.street !== "showdown" &&
+      h.street !== "waiting" &&
+      !h.result;
     if (!h || !live) {
       clockKey.current = "";
       setDeadline(null);
@@ -453,6 +511,13 @@ export default function TablePage() {
     const t = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(t);
   }, [deadline]);
+
+  useEffect(() => {
+    if (!view?.rebuy?.offered) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [view?.rebuy?.offered]);
 
   const seated = view?.meSeat != null;
   const betweenHands =
@@ -543,7 +608,10 @@ export default function TablePage() {
   }
 
   /** tick / untick Straddle or Mississippi (applies from the next hand) */
-  async function setStraddleTick(flags: { straddle?: boolean; mississippi?: boolean }) {
+  async function setStraddleTick(flags: {
+    straddle?: boolean;
+    mississippi?: boolean;
+  }) {
     if (isDemo) return;
     setBusy(true);
     setError("");
@@ -583,6 +651,42 @@ export default function TablePage() {
     await load();
   }
 
+  async function testSound() {
+    setMuted(false);
+    setSoundsMuted(false);
+    if (await unlockSounds()) {
+      playSound("bet");
+      setNotice("Sound is on.");
+    } else {
+      setNotice("Tap Test sound again to enable audio.");
+    }
+  }
+
+  async function rebuy(decline = false) {
+    if (isDemo || !view?.hand) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/table/${tableId}/rebuy`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handNo: view.hand.handNo, decline }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Could not rebuy");
+      setNotice(
+        decline
+          ? "Rebuy declined."
+          : "Rebuy complete. You keep your seat for the next hand.",
+      );
+      await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not rebuy");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** add chips to your stack: straight away between hands, otherwise before the next deal */
   async function addChips() {
     if (isDemo) {
@@ -603,6 +707,11 @@ export default function TablePage() {
       return;
     }
     setAddAmt("");
+    setNotice(
+      json.added
+        ? "Chips added to your stack."
+        : "Chips will be added before the next hand.",
+    );
     await load();
   }
 
@@ -752,10 +861,15 @@ export default function TablePage() {
       ? {
           className: "turn-clock",
           style: {
-            "--turn-progress": Math.min(1, clockLeft / (view.actionTotalMs || 15_000)),
+            "--turn-progress": Math.min(
+              1,
+              clockLeft / (view.actionTotalMs || 15_000),
+            ),
           } as CSSProperties,
           badge: (
-            <span className={`turn-seconds ${view.timeBankInUse ? "bank" : ""}`}>
+            <span
+              className={`turn-seconds ${view.timeBankInUse ? "bank" : ""}`}
+            >
               {view.timeBankInUse ? "⏱" : ""}
               {Math.ceil(clockLeft / 1000)}
             </span>
@@ -766,10 +880,12 @@ export default function TablePage() {
   // gold blink: premium starting hand, or the cards making a pair or better with the board
   const strength = view.handStrength;
   const madeCards = new Set(strength?.made ? (strength.madeCards ?? []) : []);
-  const preflopPremium = Boolean(strength?.premium) && (hand?.board.length ?? 0) < 3;
+  const preflopPremium =
+    Boolean(strength?.premium) && (hand?.board.length ?? 0) < 3;
   const madeLabel =
     strength?.made && (hand?.board.length ?? 0) >= 3 ? strength.label : null;
-  const isTournament = view.table.format === "tournament" || Boolean(view.tournament);
+  const isTournament =
+    view.table.format === "tournament" || Boolean(view.tournament);
   const tournamentDone = view.tournament?.status === "finished";
   const iWon =
     tournamentDone &&
@@ -779,7 +895,8 @@ export default function TablePage() {
   const seatCount = Math.max(2, view.seats.length);
   const dense = seatCount >= 7;
   const baseSeat = view.meSeat ?? 0;
-  const slotOf = (seatNo: number) => (seatNo - baseSeat + seatCount) % seatCount;
+  const slotOf = (seatNo: number) =>
+    (seatNo - baseSeat + seatCount) % seatCount;
 
   const me = handSeats.find((s) => s.seat === view.meSeat);
   // after your part of the hand is over you can show 1, 2 or all your cards
@@ -791,7 +908,10 @@ export default function TablePage() {
     !me!.hole.includes("xx") &&
     (Boolean(me?.folded) || hand?.street === "showdown");
   const canPick =
-    !isDemo && hand?.mode !== "ofc" && Boolean(me?.hole?.length) && !me!.hole.includes("xx");
+    !isDemo &&
+    hand?.mode !== "ofc" &&
+    Boolean(me?.hole?.length) &&
+    !me!.hole.includes("xx");
   const toggleShow = (c: string) =>
     void showCards(
       shownSet.has(c) ? [...shownSet].filter((x) => x !== c) : [...shownSet, c],
@@ -801,7 +921,8 @@ export default function TablePage() {
   const meSittingOut = Boolean(meSeatInfo?.sittingOut);
   const betsOnTable = handSeats.reduce((sum, s) => sum + (s.bet || 0), 0);
   const totalPot = (hand?.pot ?? 0) + betsOnTable;
-  const myTurn = seated && hand?.toAct === view.meSeat && view.actions.length > 0;
+  const myTurn =
+    seated && hand?.toAct === view.meSeat && view.actions.length > 0;
   // you're in this hand, it isn't your turn yet, and betting is still going on
   const preEligible =
     seated &&
@@ -820,10 +941,16 @@ export default function TablePage() {
   const myStackNow = me?.stack ?? meSeatInfo?.stack ?? 0;
   const addRoom = Math.max(0, Math.floor(view.table.buyinMax - myStackNow));
   const canAddChips = seated && !isTournament && !isDemo;
-  const busted = canAddChips && myStackNow <= 0 && !me?.hole?.length && !view.addonPending;
+  const rebuySeconds = Math.max(
+    0,
+    Math.ceil(((view.rebuy?.deadline ?? 0) - now) / 1000),
+  );
+  const busted =
+    canAddChips && myStackNow <= 0 && !me?.hole?.length && !view.addonPending;
   const winners = hand?.result?.winners ?? [];
   const winnerOf = (seatNo: number) => winners.find((w) => w.seat === seatNo);
-  const reactionOf = (seatNo: number) => reactions.find((r) => r.seat === seatNo);
+  const reactionOf = (seatNo: number) =>
+    reactions.find((r) => r.seat === seatNo);
 
   const foldAction = view.actions.find((a) => a.type === "fold");
   const passiveAction =
@@ -838,14 +965,21 @@ export default function TablePage() {
   const toCall = Math.max(0, (hand?.currentBet ?? 0) - (me?.bet ?? 0));
   const presetValue = (frac: number) => {
     if (!sizing) return 0;
-    const target = Math.round((hand?.currentBet ?? 0) + frac * (totalPot + toCall));
+    const target = Math.round(
+      (hand?.currentBet ?? 0) + frac * (totalPot + toCall),
+    );
     return Math.min(sizing.max, Math.max(sizing.min, target));
   };
   const canSize = Boolean(sizing && myTurn && !busy);
   const nudge = (dir: 1 | -1) => {
     if (!sizing) return;
     setRaiseTo(
-      String(Math.min(sizing.max, Math.max(sizing.min, raiseValue + dir * raiseStep * 2))),
+      String(
+        Math.min(
+          sizing.max,
+          Math.max(sizing.min, raiseValue + dir * raiseStep * 2),
+        ),
+      ),
     );
   };
 
@@ -870,13 +1004,32 @@ export default function TablePage() {
           >
             ☰
           </button>
-          <button type="button" className="cs-hud-btn" onClick={() => setMenuOpen(true)}>
+          <button
+            type="button"
+            className="cs-hud-btn"
+            onClick={() => {
+              setMenuSection("seat");
+              setMenuOpen(true);
+            }}
+          >
             👥 {occupied} / {view.seats.length}
           </button>
+          {canAddChips || (seated && isTournament && view.rebuy?.enabled) ? (
+            <button
+              type="button"
+              className="cs-hud-btn"
+              onClick={() => {
+                setMenuSection("seat");
+                setMenuOpen(true);
+              }}
+            >
+              {isTournament ? "Rebuy" : "+ Chips"}
+            </button>
+          ) : null}
         </div>
         <div className="cs-hud-group">
           <Link href="/lobby" className="cs-hud-btn" aria-label="Lobby">
-            ⌂
+            ⌂ Lobby
           </Link>
           <button
             type="button"
@@ -900,6 +1053,12 @@ export default function TablePage() {
               Level <b>{view.tournament?.blindLevel ?? 1}</b>
               <br />
               Prize {fmt(view.tournament?.prizePool ?? 0)}
+              {view.rebuyWaiting ? (
+                <>
+                  <br />
+                  Rebuy decision…
+                </>
+              ) : null}
             </>
           ) : (
             <>
@@ -912,13 +1071,54 @@ export default function TablePage() {
       ) : null}
 
       {error ? (
-        <button type="button" className="cs-toast error" onClick={() => setError("")}>
+        <button
+          type="button"
+          className="cs-toast error"
+          onClick={() => setError("")}
+        >
           {error}
+        </button>
+      ) : notice ? (
+        <button
+          type="button"
+          className="cs-toast"
+          onClick={() => setNotice("")}
+        >
+          {notice}
         </button>
       ) : tournamentDone ? (
         <div className="cs-toast">
           {iWon ? "🏆 You won the tournament!" : "Tournament finished"} · Prize{" "}
           {fmt(view.tournament?.prizePool ?? 0)}
+        </div>
+      ) : null}
+
+      {view.rebuy?.offered && rebuySeconds > 0 ? (
+        <div className="cs-rebuy-offer" role="status">
+          <b>Rebuy · {rebuySeconds}s</b>
+          <span>
+            {fmt(view.rebuy.cost)} club chips → {fmt(view.rebuy.chips)}{" "}
+            tournament chips
+          </span>
+          <div className="cs-sheet-row">
+            <button
+              type="button"
+              className="cs-sheet-btn"
+              disabled={busy || !view.rebuy.canRebuy}
+              onClick={() => void rebuy()}
+            >
+              Rebuy now
+            </button>
+            <button
+              type="button"
+              className="cs-sheet-btn"
+              disabled={busy}
+              onClick={() => void rebuy(true)}
+            >
+              No thanks
+            </button>
+          </div>
+          {view.rebuy.reason ? <span>{view.rebuy.reason}</span> : null}
         </div>
       ) : null}
 
@@ -928,6 +1128,21 @@ export default function TablePage() {
           <div className="cs-felt" />
         </div>
 
+        {hand && view.seats.some((s) => s.seat === hand.button && !s.empty) ? (
+          <div
+            className="cs-dealer-puck"
+            style={{
+              left: dealerPoint(slotOf(hand.button), seatCount).left,
+              top: `${dealerPoint(slotOf(hand.button), seatCount).top}%`,
+            }}
+            role="img"
+            aria-label={`Dealer: ${hand.button === view.meSeat ? "You" : view.seats.find((s) => s.seat === hand.button)?.name}`}
+            title="Dealer button"
+          >
+            D
+          </div>
+        ) : null}
+
         {/* centre column: pot, board, chips, info — stacked so nothing overlaps */}
         <div className="cs-center">
           <div className="cs-pot-box">
@@ -935,7 +1150,11 @@ export default function TablePage() {
           </div>
           <div className="cs-board">
             {(hand?.board ?? []).map((c, i) => (
-              <PlayingCard key={`${c}-${i}`} card={c} blink={madeCards.has(c)} />
+              <PlayingCard
+                key={`${c}-${i}`}
+                card={c}
+                blink={madeCards.has(c)}
+              />
             ))}
           </div>
           {hand?.pot ? (
@@ -945,7 +1164,11 @@ export default function TablePage() {
                   <div
                     key={i}
                     className="cs-vstack"
-                    style={{ "--chip": asset(`chip-${st.color}.png`) } as CSSProperties}
+                    style={
+                      {
+                        "--chip": asset(`chip-${st.color}.png`),
+                      } as CSSProperties
+                    }
                   >
                     {Array.from({ length: st.count }, (_, k) => (
                       <i key={k} style={{ bottom: `${k * 9}%` }} />
@@ -971,7 +1194,8 @@ export default function TablePage() {
             {view.squid ? (
               <>
                 <br />
-                Squid pot <b>{fmt(view.squid.pot)}</b> · first to {view.squid.target}
+                Squid pot <b>{fmt(view.squid.pot)}</b> · first to{" "}
+                {view.squid.target}
               </>
             ) : null}
             {view.table.cucuruchoEnabled ? (
@@ -996,7 +1220,11 @@ export default function TablePage() {
           if (seat.empty) {
             const canTake = !busy && !isTournament && canSit;
             return (
-              <div key={seat.seat} className={`cs-seat ${dense ? "dense" : ""}`} style={style}>
+              <div
+                key={seat.seat}
+                className={`cs-seat ${dense ? "dense" : ""}`}
+                style={style}
+              >
                 <button
                   type="button"
                   className="cs-empty-seat"
@@ -1019,25 +1247,38 @@ export default function TablePage() {
             >
               <div className="cs-avatar">
                 {(() => {
-                  const src = avatarSrc(avatars.bySeat[String(seat.seat)] ?? defaultAvatar(seat.name));
+                  const src = avatarSrc(
+                    avatars.bySeat[String(seat.seat)] ??
+                      defaultAvatar(seat.name),
+                  );
                   return src ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img className="cs-avatar-img" src={sized(src, 128)} alt="" />
+                    <img
+                      className="cs-avatar-img"
+                      src={sized(src, 128)}
+                      alt=""
+                    />
                   ) : (
                     avatarFor(seat.name, seat.isBot)
                   );
                 })()}
-                {hand && hand.button === seat.seat ? <div className="cs-dealer">D</div> : null}
                 {rx ? <div className="cs-reaction">{rx.emoji}</div> : null}
               </div>
-              {live?.hole?.length && (!live.folded || live.hole.some((c) => c !== "xx")) ? (
+              {live?.hole?.length &&
+              (!live.folded || live.hole.some((c) => c !== "xx")) ? (
                 // fewer, smaller cards for Omaha (4–6) so they stay on screen;
                 // a folded player only shows the cards they chose to show
-                <div className={`cs-seat-cards n${Math.min(live.hole.length, 6)}`}>
+                <div
+                  className={`cs-seat-cards n${Math.min(live.hole.length, 6)}`}
+                >
                   {live.hole
                     .filter((c) => !live.folded || c !== "xx")
                     .map((c, i) => (
-                      <PlayingCard key={i} card={c} cardBack={view.cosmetics?.cardBack} />
+                      <PlayingCard
+                        key={i}
+                        card={c}
+                        cardBack={view.cosmetics?.cardBack}
+                      />
                     ))}
                 </div>
               ) : null}
@@ -1084,7 +1325,11 @@ export default function TablePage() {
                 className={`cs-bet ${b.anchor}`}
                 style={{ left: b.left, top: `${b.top}%` }}
               >
-                <i style={{ "--chip": asset(`chip-${chip}.png`) } as CSSProperties} />
+                <i
+                  style={
+                    { "--chip": asset(`chip-${chip}.png`) } as CSSProperties
+                  }
+                />
                 <span>{fmt(s.bet)}</span>
               </div>
             );
@@ -1106,7 +1351,9 @@ export default function TablePage() {
                     <PlayingCard
                       card={c}
                       premium={Boolean(view.handStrength?.premium)}
-                      blink={!me?.folded && (preflopPremium || madeCards.has(c))}
+                      blink={
+                        !me?.folded && (preflopPremium || madeCards.has(c))
+                      }
                       cardBack={view.cosmetics?.cardBack}
                     />
                   </div>
@@ -1118,13 +1365,13 @@ export default function TablePage() {
               style={{ position: "relative", ...clockFor(view.meSeat).style }}
             >
               {clockFor(view.meSeat).badge}
-              <div className="n">
-                You{hand && hand.button === view.meSeat ? " · D" : ""}
-              </div>
+              <div className="n">You</div>
               {meSittingOut && !me?.hole?.length ? (
                 <div className="st out">Sitting out</div>
               ) : (
-                <div className="st">{fmt(me?.stack ?? meSeatInfo?.stack ?? 0)}</div>
+                <div className="st">
+                  {fmt(me?.stack ?? meSeatInfo?.stack ?? 0)}
+                </div>
               )}
               {me?.folded ? (
                 <div className="bt allin">FOLDED</div>
@@ -1140,21 +1387,31 @@ export default function TablePage() {
                 </div>
               ) : null}
               {view.meSeat != null && reactionOf(view.meSeat) ? (
-                <div className="cs-reaction">{reactionOf(view.meSeat)!.emoji}</div>
+                <div className="cs-reaction">
+                  {reactionOf(view.meSeat)!.emoji}
+                </div>
               ) : null}
             </div>
-            {madeLabel && !me?.folded ? <div className="cs-made-hand">{madeLabel}</div> : null}
+            {madeLabel && !me?.folded ? (
+              <div className="cs-made-hand">{madeLabel}</div>
+            ) : null}
           </div>
         ) : null}
       </div>
 
       {/* ---------- OFC ---------- */}
-      {hand?.mode === "ofc" && hand.toAct === view.meSeat && (hand.draft?.length ?? 0) > 0 ? (
+      {hand?.mode === "ofc" &&
+      hand.toAct === view.meSeat &&
+      (hand.draft?.length ?? 0) > 0 ? (
         <div className="cs-ofc">
           <b>OFC Pineapple — set your cards</b>
           <div className="cs-row">
             {(hand.draft || []).map((c, i) => (
-              <PlayingCard key={`${c}-${i}`} card={c} cardBack={view.cosmetics?.cardBack} />
+              <PlayingCard
+                key={`${c}-${i}`}
+                card={c}
+                cardBack={view.cosmetics?.cardBack}
+              />
             ))}
           </div>
           <div style={{ opacity: 0.75, marginBottom: 6 }}>
@@ -1179,8 +1436,8 @@ export default function TablePage() {
             <div key={r.seat ?? i} style={{ opacity: 0.8 }}>
               Seat {(r.seat ?? i) + 1}
               {r.fouled ? " · Foul" : ""}
-              {r.fantasyNext ? " · Fantasy next" : ""} · F {r.front} · M {r.middle} · B{" "}
-              {r.back}
+              {r.fantasyNext ? " · Fantasy next" : ""} · F {r.front} · M{" "}
+              {r.middle} · B {r.back}
               {r.delta != null ? ` · ${r.delta >= 0 ? "+" : ""}${r.delta}` : ""}
             </div>
           ))}
@@ -1257,7 +1514,10 @@ export default function TablePage() {
             >
               +
             </button>
-            <div className="cs-vtrack" style={{ "--len": "42px" } as CSSProperties}>
+            <div
+              className="cs-vtrack"
+              style={{ "--len": "42px" } as CSSProperties}
+            >
               <input
                 type="range"
                 aria-label="Raise amount"
@@ -1288,7 +1548,8 @@ export default function TablePage() {
                 style={{ gridColumn: "1 / -1" }}
                 disabled={busy}
                 onClick={() => {
-                  setAddAmt(String(view.table.buyinMax));
+                  setMenuSection("seat");
+                  setAddAmt(String(addRoom));
                   setMenuOpen(true);
                 }}
               >
@@ -1329,74 +1590,82 @@ export default function TablePage() {
                 className={`cs-show-all ${shownSet.size === me!.hole.length ? "on" : ""}`}
                 disabled={busy}
                 onClick={() =>
-                  void showCards(shownSet.size === me!.hole.length ? [] : [...me!.hole])
+                  void showCards(
+                    shownSet.size === me!.hole.length ? [] : [...me!.hole],
+                  )
                 }
               >
                 {me!.hole.length === 2 ? "BOTH" : "ALL"}
               </button>
             </div>
           ) : (
-          <div className="cs-actions">
-            {preEligible ? (
-              // not your turn yet: tick CHECK / FOLD (like GG Poker)
+            <div className="cs-actions">
+              {preEligible ? (
+                // not your turn yet: tick CHECK / FOLD (like GG Poker)
+                <button
+                  type="button"
+                  className="cs-action fold"
+                  style={
+                    preCheckFold === hand?.handNo
+                      ? { boxShadow: "0 0 0 3px #ffd34d", color: "#ffd34d" }
+                      : undefined
+                  }
+                  onClick={() =>
+                    setPreCheckFold(
+                      preCheckFold === hand?.handNo
+                        ? null
+                        : (hand?.handNo ?? null),
+                    )
+                  }
+                >
+                  {preCheckFold === hand?.handNo ? "☑" : "☐"} CHECK
+                  <br />/ FOLD
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="cs-action fold"
+                  disabled={busy || !myTurn || !foldAction}
+                  onClick={() => act("fold")}
+                >
+                  FOLD
+                </button>
+              )}
               <button
                 type="button"
-                className="cs-action fold"
-                style={
-                  preCheckFold === hand?.handNo
-                    ? { boxShadow: "0 0 0 3px #ffd34d", color: "#ffd34d" }
-                    : undefined
-                }
+                className="cs-action call"
+                disabled={busy || !myTurn || !passiveAction}
                 onClick={() =>
-                  setPreCheckFold(preCheckFold === hand?.handNo ? null : (hand?.handNo ?? null))
+                  passiveAction && act(passiveAction.type, passiveAction.amount)
                 }
               >
-                {preCheckFold === hand?.handNo ? "☑" : "☐"} CHECK
-                <br />/ FOLD
+                {passiveAction?.type === "call"
+                  ? `CALL ${fmt(passiveAction.amount ?? toCall)}`
+                  : "CHECK"}
               </button>
-            ) : (
               <button
                 type="button"
-                className="cs-action fold"
-                disabled={busy || !myTurn || !foldAction}
-                onClick={() => act("fold")}
+                className="cs-action raise"
+                disabled={busy || !myTurn || !sizing}
+                onClick={() => sizing && act(sizing.kind, raiseValue)}
               >
-                FOLD
+                {sizing?.kind === "bet" ? "BET" : "RAISE TO"}
+                {sizing && myTurn ? (
+                  <>
+                    <br />
+                    {fmt(raiseValue)}
+                  </>
+                ) : null}
               </button>
-            )}
-            <button
-              type="button"
-              className="cs-action call"
-              disabled={busy || !myTurn || !passiveAction}
-              onClick={() => passiveAction && act(passiveAction.type, passiveAction.amount)}
-            >
-              {passiveAction?.type === "call"
-                ? `CALL ${fmt(passiveAction.amount ?? toCall)}`
-                : "CHECK"}
-            </button>
-            <button
-              type="button"
-              className="cs-action raise"
-              disabled={busy || !myTurn || !sizing}
-              onClick={() => sizing && act(sizing.kind, raiseValue)}
-            >
-              {sizing?.kind === "bet" ? "BET" : "RAISE TO"}
-              {sizing && myTurn ? (
-                <>
-                  <br />
-                  {fmt(raiseValue)}
-                </>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              className="cs-action allin"
-              disabled={busy || !myTurn || !allinAction}
-              onClick={() => allinAction && act("allin", allinAction.amount)}
-            >
-              ALL-IN
-            </button>
-          </div>
+              <button
+                type="button"
+                className="cs-action allin"
+                disabled={busy || !myTurn || !allinAction}
+                onClick={() => allinAction && act("allin", allinAction.amount)}
+              >
+                ALL-IN
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -1404,196 +1673,359 @@ export default function TablePage() {
       {/* ---------- menu sheet ---------- */}
       {menuOpen ? (
         <>
-          <div className="cs-sheet-backdrop" onClick={() => setMenuOpen(false)} />
-          <div className="cs-sheet">
+          <div
+            className="cs-sheet-backdrop"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            className="cs-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Table menu"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-base font-extrabold">{view.table.title}</div>
+                <div className="text-base font-extrabold">
+                  {view.table.title}
+                </div>
                 <div style={{ color: "#9ea8b8" }}>
-                  {view.table.gameType || "NLH"} · {view.table.sb}/{view.table.bb}
+                  {view.table.gameType || "NLH"} · {view.table.sb}/
+                  {view.table.bb}
                   {hand ? ` · Hand #${hand.handNo}` : ""}
                   {view.table.bbjpEnabled
                     ? ` · BBJP ${fmt(view.bbjp.balance)} (min ${view.bbjp.minimumHand || view.bbjp.trigger})`
                     : ""}
                 </div>
               </div>
-              <button type="button" className="cs-sheet-btn" onClick={() => setMenuOpen(false)}>
+              <button
+                type="button"
+                className="cs-sheet-btn"
+                aria-label="Close table menu"
+                onClick={() => setMenuOpen(false)}
+              >
                 ✕
               </button>
             </div>
 
-            {seated ? (
+            <label className="cs-menu-label" htmlFor="table-menu-section">
+              Choose a section
+            </label>
+            <select
+              id="table-menu-section"
+              className="cs-menu-select"
+              value={menuSection}
+              onChange={(e) => setMenuSection(e.target.value)}
+            >
+              <option value="seat">Seat, add chips &amp; rebuy</option>
+              <option value="avatar">Avatars</option>
+              <option value="felt">Felts</option>
+              <option value="room">Tables &amp; backgrounds</option>
+              <option value="cards">Cards</option>
+              <option value="sound">Sound</option>
+              <option value="log">Hand log</option>
+            </select>
+            {notice ? (
+              <p className="cs-menu-notice" role="status">
+                {notice}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="cs-menu-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            {menuSection === "seat" ? (
               <>
-                <h3>Reactions</h3>
-                <div className="cs-sheet-row">
-                  {emojis.map((e) => (
+                <h3>Seat</h3>
+                {seated && !isTournament ? (
+                  <div className="cs-sheet-row">
                     <button
-                      key={e}
                       type="button"
-                      className="cs-sheet-btn emoji"
+                      className="cs-sheet-btn"
+                      style={meSittingOut ? TICKED : undefined}
                       disabled={busy}
+                      onClick={() => void setSitOut(!meSittingOut)}
+                    >
+                      {meSittingOut
+                        ? "☑ Sitting out — tap to come back"
+                        : "☐ Sit out next hand"}
+                    </button>
+                  </div>
+                ) : null}
+                {canAddChips ? (
+                  <div style={{ margin: "2px 0 8px" }}>
+                    <div style={{ color: "#9ea8b8", marginBottom: 4 }}>
+                      Add chips (up to {fmt(view.table.buyinMax)} on the table)
+                      {view.addonPending ? (
+                        <b style={{ color: "#ffd34d" }}>
+                          {" "}
+                          · +{fmt(view.addonPending)} added before the next hand
+                        </b>
+                      ) : null}
+                    </div>
+                    <div className="cs-sheet-row">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        aria-label="Chips to add"
+                        max={addRoom}
+                        value={addAmt}
+                        placeholder={
+                          addRoom > 0 ? `max ${fmt(addRoom)}` : "at table max"
+                        }
+                        onChange={(e) => setAddAmt(e.target.value)}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          height: 40,
+                          borderRadius: 10,
+                          border: "1px solid #3a4456",
+                          background: "#0d1320",
+                          color: "#fff",
+                          padding: "0 10px",
+                          fontSize: 16,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="cs-sheet-btn"
+                        disabled={busy || addRoom <= 0}
+                        onClick={() => setAddAmt(String(addRoom))}
+                      >
+                        Max
+                      </button>
+                      <button
+                        type="button"
+                        className="cs-sheet-btn"
+                        style={TICKED}
+                        disabled={
+                          busy ||
+                          addRoom <= 0 ||
+                          !(Number(addAmt) > 0) ||
+                          Number(addAmt) > addRoom
+                        }
+                        onClick={() => void addChips()}
+                      >
+                        Add chips
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {seated && isTournament ? (
+                  <>
+                    <h3>Tournament rebuy</h3>
+                    {view.rebuy?.enabled ? (
+                      <p className="mb-2 text-sm">
+                        {fmt(view.rebuy.cost)} club chips for{" "}
+                        {fmt(view.rebuy.chips)} tournament chips · through level{" "}
+                        {view.rebuy.untilLevel}.
+                      </p>
+                    ) : null}
+                    {view.rebuy?.offered && rebuySeconds > 0 ? (
+                      <div className="cs-sheet-row">
+                        <button
+                          type="button"
+                          className="cs-sheet-btn"
+                          style={TICKED}
+                          disabled={busy || !view.rebuy.canRebuy}
+                          onClick={() => void rebuy()}
+                        >
+                          Rebuy now · {rebuySeconds}s
+                        </button>
+                        <button
+                          type="button"
+                          className="cs-sheet-btn"
+                          disabled={busy}
+                          onClick={() => void rebuy(true)}
+                        >
+                          No thanks
+                        </button>
+                      </div>
+                    ) : (
+                      <p>
+                        {view.rebuy?.reason ||
+                          "Rebuys are not enabled for this tournament."}
+                      </p>
+                    )}
+                    {view.rebuy?.offered && view.rebuy.reason ? (
+                      <p>{view.rebuy.reason}</p>
+                    ) : null}
+                  </>
+                ) : null}
+                {seated && view.timeBank != null ? (
+                  <div style={{ color: "#9ea8b8", margin: "2px 0 8px" }}>
+                    ⏱ Time bank:{" "}
+                    <b style={{ color: "#ffd34d" }}>{view.timeBank}</b> free
+                    cards (+10 s each, used automatically when your time runs
+                    out · 1 more every 25 hands · max 12)
+                  </div>
+                ) : null}
+                <div className="cs-sheet-row">
+                  <Link
+                    href="/lobby"
+                    className="cs-sheet-btn grid place-items-center"
+                  >
+                    ← Back to lobby
+                  </Link>
+                  {seated && (!isTournament || !tournamentDone) ? (
+                    <button
+                      type="button"
+                      className="cs-sheet-btn danger"
+                      disabled={busy || !canLeave}
                       onClick={() => {
-                        void react(e);
+                        void leave();
                         setMenuOpen(false);
                       }}
                     >
-                      {e}
+                      {isTournament
+                        ? canLeave
+                          ? "Forfeit tournament"
+                          : "Forfeit after hand"
+                        : canLeave
+                          ? "Leave table"
+                          : "Leave after hand"}
                     </button>
+                  ) : null}
+                </div>
+
+                {seated ? (
+                  <>
+                    <h3>Reactions</h3>
+                    <div className="cs-sheet-row">
+                      {emojis.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          className="cs-sheet-btn emoji"
+                          disabled={busy}
+                          onClick={() => {
+                            void react(e);
+                            setMenuOpen(false);
+                          }}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {seated &&
+                (view.straddle?.straddle || view.straddle?.mississippi) ? (
+                  <>
+                    <h3>Straddle (from the next hand)</h3>
+                    <div className="cs-sheet-row">
+                      {view.straddle?.straddle ? (
+                        <button
+                          type="button"
+                          className="cs-sheet-btn"
+                          style={
+                            view.straddle.mine.straddle ? TICKED : undefined
+                          }
+                          disabled={busy}
+                          onClick={() =>
+                            void setStraddleTick({
+                              straddle: !view.straddle!.mine.straddle,
+                            })
+                          }
+                        >
+                          {view.straddle.mine.straddle ? "☑" : "☐"} Straddle
+                        </button>
+                      ) : null}
+                      {view.straddle?.mississippi ? (
+                        <button
+                          type="button"
+                          className="cs-sheet-btn"
+                          style={
+                            view.straddle.mine.mississippi ? TICKED : undefined
+                          }
+                          disabled={busy}
+                          onClick={() =>
+                            void setStraddleTick({
+                              mississippi: !view.straddle!.mine.mississippi,
+                            })
+                          }
+                        >
+                          {view.straddle.mine.mississippi ? "☑" : "☐"}{" "}
+                          Mississippi
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+            {menuSection === "avatar" ? (
+              <>
+                <h3>Your avatar</h3>
+                {isDemo ? (
+                  <p>Join a live table to save your avatar.</p>
+                ) : (
+                  <AvatarPicker
+                    current={avatars.mine}
+                    disabled={busy}
+                    onPick={(id) => void pickAvatar(id)}
+                  />
+                )}
+              </>
+            ) : null}
+            {menuSection === "felt" ? (
+              <>
+                <h3>Felt colour</h3>
+                <FeltPicker />
+              </>
+            ) : null}
+            {menuSection === "room" ? (
+              <>
+                <h3>Table background</h3>
+                <RoomPicker />
+              </>
+            ) : null}
+            {menuSection === "cards" ? (
+              <>
+                <h3>Card front</h3>
+                <FacePicker />
+                <h3>Card back</h3>
+                <DeckPicker />
+              </>
+            ) : null}
+            {menuSection === "sound" ? (
+              <>
+                <h3>Table sounds</h3>
+                <div className="cs-sheet-row">
+                  <button
+                    type="button"
+                    className="cs-sheet-btn"
+                    aria-pressed={!muted}
+                    onClick={() => {
+                      setMuted(!muted);
+                      setSoundsMuted(!muted);
+                    }}
+                  >
+                    {muted ? "Sound off — turn on" : "Sound on — mute"}
+                  </button>
+                  <button
+                    type="button"
+                    className="cs-sheet-btn"
+                    onClick={() => void testSound()}
+                  >
+                    Test sound
+                  </button>
+                </div>
+              </>
+            ) : null}
+            {menuSection === "log" ? (
+              <>
+                <h3>Hand log</h3>
+                <div className="cs-log">
+                  {(hand?.log || ["Waiting for players…"]).map((line, i) => (
+                    <div key={i}>{line}</div>
                   ))}
                 </div>
               </>
             ) : null}
-
-            {seated && (view.straddle?.straddle || view.straddle?.mississippi) ? (
-              <>
-                <h3>Straddle (from the next hand)</h3>
-                <div className="cs-sheet-row">
-                  {view.straddle?.straddle ? (
-                    <button
-                      type="button"
-                      className="cs-sheet-btn"
-                      style={view.straddle.mine.straddle ? TICKED : undefined}
-                      disabled={busy}
-                      onClick={() =>
-                        void setStraddleTick({ straddle: !view.straddle!.mine.straddle })
-                      }
-                    >
-                      {view.straddle.mine.straddle ? "☑" : "☐"} Straddle
-                    </button>
-                  ) : null}
-                  {view.straddle?.mississippi ? (
-                    <button
-                      type="button"
-                      className="cs-sheet-btn"
-                      style={view.straddle.mine.mississippi ? TICKED : undefined}
-                      disabled={busy}
-                      onClick={() =>
-                        void setStraddleTick({ mississippi: !view.straddle!.mine.mississippi })
-                      }
-                    >
-                      {view.straddle.mine.mississippi ? "☑" : "☐"} Mississippi
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
-
-            {!isDemo ? (
-              <>
-                <h3>Your avatar</h3>
-                <AvatarPicker current={avatars.mine} onPick={(id) => void pickAvatar(id)} />
-              </>
-            ) : null}
-
-            <h3>Table colour</h3>
-            <FeltPicker />
-
-            <h3>Card front</h3>
-            <FacePicker />
-
-            <h3>Card back</h3>
-            <DeckPicker />
-
-            <h3>Seat</h3>
-            {seated && !isTournament ? (
-              <div className="cs-sheet-row">
-                <button
-                  type="button"
-                  className="cs-sheet-btn"
-                  style={meSittingOut ? TICKED : undefined}
-                  disabled={busy}
-                  onClick={() => void setSitOut(!meSittingOut)}
-                >
-                  {meSittingOut ? "☑ Sitting out — tap to come back" : "☐ Sit out next hand"}
-                </button>
-              </div>
-            ) : null}
-            {canAddChips ? (
-              <div style={{ margin: "2px 0 8px" }}>
-                <div style={{ color: "#9ea8b8", marginBottom: 4 }}>
-                  Add chips (up to {fmt(view.table.buyinMax)} on the table)
-                  {view.addonPending ? (
-                    <b style={{ color: "#ffd34d" }}> · +{fmt(view.addonPending)} added before the next hand</b>
-                  ) : null}
-                </div>
-                <div className="cs-sheet-row">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={addRoom}
-                    value={addAmt}
-                    placeholder={addRoom > 0 ? `max ${fmt(addRoom)}` : "at table max"}
-                    onChange={(e) => setAddAmt(e.target.value)}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 40,
-                      borderRadius: 10,
-                      border: "1px solid #3a4456",
-                      background: "#0d1320",
-                      color: "#fff",
-                      padding: "0 10px",
-                      fontSize: 16,
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="cs-sheet-btn"
-                    disabled={busy || addRoom <= 0}
-                    onClick={() => setAddAmt(String(addRoom))}
-                  >
-                    Max
-                  </button>
-                  <button
-                    type="button"
-                    className="cs-sheet-btn"
-                    style={TICKED}
-                    disabled={busy || addRoom <= 0 || !(Number(addAmt) > 0)}
-                    onClick={() => void addChips()}
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            {seated && view.timeBank != null ? (
-              <div style={{ color: "#9ea8b8", margin: "2px 0 8px" }}>
-                ⏱ Time bank: <b style={{ color: "#ffd34d" }}>{view.timeBank}</b> free cards (+10 s
-                each, used automatically when your time runs out · 1 more every 25 hands · max 12)
-              </div>
-            ) : null}
-            <div className="cs-sheet-row">
-              <Link href="/lobby" className="cs-sheet-btn grid place-items-center">
-                ← Back to lobby
-              </Link>
-              {seated && (!isTournament || !tournamentDone) ? (
-                <button
-                  type="button"
-                  className="cs-sheet-btn danger"
-                  disabled={busy || !canLeave}
-                  onClick={() => {
-                    void leave();
-                    setMenuOpen(false);
-                  }}
-                >
-                  {isTournament
-                    ? canLeave
-                      ? "Forfeit tournament"
-                      : "Forfeit after hand"
-                    : canLeave
-                      ? "Leave table"
-                      : "Leave after hand"}
-                </button>
-              ) : null}
-            </div>
-
-            <h3>Hand log</h3>
-            <div className="cs-log">
-              {(hand?.log || ["Waiting for players…"]).map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </div>
           </div>
         </>
       ) : null}

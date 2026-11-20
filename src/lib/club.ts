@@ -9,6 +9,7 @@ import {
   type GameType,
 } from "./poker/variants";
 import { ensureOnce, hasColumns } from "./schema-once";
+import { ensureRebuySchema } from "./tournament-rebuy";
 import { ensureTablePlaySchema } from "./table-schema";
 
 export const DEFAULT_CLUB_ID = "club_fa_poker";
@@ -58,6 +59,7 @@ export type CashTable = {
 };
 
 export type Tournament = {
+  rebuy_until_level?: number;
   id: string;
   club_id: string;
   title: string;
@@ -689,8 +691,11 @@ export async function createTournament(input: {
   startsAt?: string | null;
   kind?: "mtt" | "spin";
   gameType?: string;
+  rebuyUntilLevel?: number;
 }) {
   await ensureClubSeeded();
+  await ensureRebuySchema();
+  if (!Number.isInteger(input.rebuyUntilLevel ?? 0) || (input.rebuyUntilLevel ?? 0) < 0 || (input.rebuyUntilLevel ?? 0) > 17) throw new Error("Last rebuy level must be 0–17");
   await sql(
     `alter table tournaments add column if not exists kind text not null default 'mtt'`,
   );
@@ -711,8 +716,8 @@ export async function createTournament(input: {
   await sql(
     `insert into tournaments (
       id, club_id, title, buy_in, fee, starting_stack, max_players, blind_minutes,
-      status, starts_at, kind, game_type
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,'scheduled',$9,$10,$11)`,
+      status, starts_at, kind, game_type, rebuy_until_level
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,'scheduled',$9,$10,$11,$12)`,
     [
       tournamentId,
       DEFAULT_CLUB_ID,
@@ -725,6 +730,7 @@ export async function createTournament(input: {
       input.startsAt || null,
       kind,
       isGameType(input.gameType ?? "NLH") ? input.gameType : "NLH",
+      kind === "spin" ? 0 : input.rebuyUntilLevel ?? 0,
     ],
   );
   const rows = await listTournaments();

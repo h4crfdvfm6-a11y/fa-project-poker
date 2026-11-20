@@ -5,6 +5,7 @@ import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
 import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { GAME_TYPES, gameTypeLabel, isGameType } from "@/lib/poker/variants";
 
 type LobbyData = {
   leaving?: number;
@@ -47,6 +48,7 @@ export default function LobbyPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
+  const [game, setGame] = useState("ALL");
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
@@ -182,14 +184,33 @@ export default function LobbyPage() {
       />
 
       <section className="mb-6">
-        <h2 className="brand mb-3 text-2xl">Open tables</h2>
-        <div className="grid gap-3">
+        <div className="mb-3 flex items-center gap-3">
+          <h2 className="brand shrink-0 text-2xl" id="open-tables-heading">Open tables</h2>
+          <div className="flex min-w-0 gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Game types">
+            {["ALL", ...GAME_TYPES].map((g) => (
+              <button
+                key={g}
+                type="button"
+                role="tab"
+                id={`game-${g}`}
+                aria-selected={game === g}
+                aria-controls="open-tables"
+                title={isGameType(g) ? gameTypeLabel(g) : "All games"}
+                className={`btn shrink-0 !px-3 !py-2 !text-xs ${game === g ? "btn-gold" : "btn-ghost"}`}
+                onClick={() => setGame(g)}
+              >
+                {g === "ALL" ? "All" : g.replaceAll("_", " ")}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3" id="open-tables" role="tabpanel" aria-labelledby={`game-${game}`}>
           {data.tables.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">
               No open tables yet. Admin can open one from the panel.
             </p>
           ) : (
-            data.tables.map((t) => (
+            data.tables.filter((t) => game === "ALL" || (t.game_type || "NLH") === game).map((t) => (
               <article key={t.id} className="panel p-4">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <h3 className="font-semibold">{t.title}</h3>
@@ -221,6 +242,9 @@ export default function LobbyPage() {
               </article>
             ))
           )}
+          {data.tables.length > 0 && !data.tables.some((t) => game === "ALL" || (t.game_type || "NLH") === game) ? (
+            <p className="text-sm text-[var(--muted)]">No open {game.replaceAll("_", " ")} tables.</p>
+          ) : null}
         </div>
       </section>
 

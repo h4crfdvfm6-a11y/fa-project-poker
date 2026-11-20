@@ -677,6 +677,43 @@ button.cs-empty-seat:not(:disabled) {
   font-size: 22px;
   padding: 0 10px;
 }
+.cs-dealer-puck {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 115;
+  display: grid;
+  place-items: center;
+  width: clamp(24px, 7cqw, 34px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid #d1ad53;
+  background: radial-gradient(circle at 35% 25%, #fff, #dedbd1);
+  color: #15253a;
+  box-shadow: 0 2px 5px #0009, inset 0 0 0 2px #fff;
+  font-size: clamp(14px, 4cqw, 20px);
+  font-weight: 900;
+  pointer-events: none;
+}
+.cs-menu-label { display: block; margin: 16px 0 6px; color: #b9c5d5; }
+.cs-menu-select { width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1px solid #54617a; background: #151d29; color: white; font-size: 16px; }
+.cs-menu-notice { margin: 10px 0; color: #ffd34d; }
+.cs-menu-error { margin: 10px 0; color: #ffb4b6; }
+.cs-rebuy-offer {
+  position: fixed;
+  top: calc(max(8px, env(safe-area-inset-top)) + 58px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 260;
+  width: min(88vw, 360px);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d1ad53;
+  border-radius: 14px;
+  background: #0e141ef5;
+  font-size: 13px;
+}
+.cs-rebuy-offer b { color: #ffd34d; }
 .cs-log {
   max-height: 160px;
   overflow: auto;

@@ -89,3 +89,13 @@ async function startLocal(): Promise<PGlite> {
   }
   return db;
 }
+
+/** Release database resources for isolated tests and orderly shutdown. */
+export async function closeDatabase() {
+  await withLocalLock(async () => {
+    if (local) await (await local).close();
+    local = undefined;
+  });
+  if (pool) await pool.end();
+  pool = undefined;
+}

@@ -3,13 +3,14 @@ import { ensureOnce, hasColumns } from "./schema-once";
 
 /** All cash-table / runtime columns needed for squid + hand economy. */
 export async function ensureTablePlaySchema() {
-  await ensureOnce("table-play-schema-v2", async () => {
+  await ensureOnce("table-play-schema-v3", async () => {
     if (
       await hasColumns([
         ["table_runtime", "squid_json"],
         ["table_runtime", "squid_hand_no"],
         ["table_runtime", "squid_ante_hand_no"],
         ["table_runtime", "economy_hand_no"],
+        ["table_runtime", "settled_hand_no"],
         ["cash_tables", "squid_enabled"],
         ["cash_tables", "squid_target"],
         ["cash_tables", "cucurucho_enabled"],
@@ -34,6 +35,12 @@ export async function ensureTablePlaySchema() {
     await sql(
       `alter table table_runtime
        add column if not exists economy_hand_no int not null default 0`,
+    );
+    await sql(
+      `alter table table_runtime add column if not exists settled_hand_no int not null default -1`,
+    );
+    await sql(
+      `update table_runtime set settled_hand_no = hand_no where phase = 'showdown'`,
     );
     await sql(
       `alter table cash_tables

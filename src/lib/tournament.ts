@@ -1,4 +1,4 @@
-import { sql } from "./db";
+import { sql, withTransaction } from "./db";
 import { id } from "./ids";
 import {
   DEFAULT_CLUB_ID,
@@ -9,9 +9,10 @@ import {
   listTournaments,
   num,
   rollSpinMultiplier,
-  sendChips,
   type Tournament,
 } from "./club";
+
+import { ensureRebuySchema, offerTournamentRebuys } from "./tournament-rebuy";
 
 const BLIND_LEVELS: Array<[number, number]> = [
   [10, 20],
@@ -113,7 +114,10 @@ export async function startTournament(tournamentId: string) {
     if (!reverted.length) return;
     // Only overlay debits need reversing (surplus is deferred until link succeeds).
     if (spinFloatDelta < 0) {
-      await creditBotFloat(-spinFloatDelta, `spin_abort_refund:${tournamentId}`);
+      await creditBotFloat(
+        -spinFloatDelta,
+        `spin_abort_refund:${tournamentId}`,
+      );
     }
     spinFloatDelta = 0;
     await sql(
@@ -180,13 +184,12 @@ export async function startTournament(tournamentId: string) {
         // Defer house take until link succeeds so abort cannot leak float credits.
         pendingSurplus = -overlay;
       }
-      await sql(
-        `update tournaments set spin_multiplier = $2 where id = $1`,
-        [tournamentId, spinMult],
-      );
+      await sql(`update tournaments set spin_multiplier = $2 where id = $1`, [
+        tournamentId,
+        spinMult,
+      ]);
     }
-    const gameType =
-      (tournament as { game_type?: string }).game_type || "NLH";
+    const gameType = (tournament as { game_type?: string }).game_type || "NLH";
 
     await sql(
       `insert into cash_tables (
@@ -291,61 +294,82 @@ export async function maybeAdvanceTournamentBlinds(tableId: string) {
 }
 
 export async function maybeFinishTournament(tableId: string) {
-  const tournament = await getTournamentByTable(tableId);
-  if (!tournament || tournament.status !== "running") return null;
-
-  const alive = await sql<{
-    member_id: string;
-    display_name: string;
-    stack: string | number;
-    is_bot: boolean;
-  }>(
-    `select member_id, display_name, stack, is_bot
-     from table_seats
-     where table_id = $1 and member_id is not null and stack > 0
-     order by stack desc`,
-    [tableId],
-  );
-
-  if (alive.length > 1) return null;
-
-  const winner = alive[0] ?? null;
-  const winnerId = winner?.member_id ?? null;
-
-  // Claim finish exactly once so concurrent pollers cannot double-pay.
-  const claimed = await sql<TournamentRuntime>(
-    `update tournaments
-     set status = 'finished', winner_member_id = $2
-     where id = $1 and status = 'running'
-     returning *`,
-    [tournament.id, winnerId],
-  );
-  if (!claimed.length) return null;
-
-  const prizePool = num(claimed[0]!.prize_pool ?? tournament.prize_pool ?? 0);
-  if (winner && !winner.is_bot && prizePool > 0) {
-    await sendChips(winner.member_id, prizePool, `mtt_win:${tournament.id}`);
-  }
-
-  await sql(`update cash_tables set status = 'closed' where id = $1`, [tableId]);
-  await sql(
-    `update table_seats
-     set member_id = null, display_name = '', stack = 0, is_bot = false, sitting_out = false
-     where table_id = $1`,
-    [tableId],
-  );
-  await sql(
-    `update table_runtime
-     set phase = 'finished', state_json = '{}', version = version + 1, updated_at = now()
-     where table_id = $1`,
-    [tableId],
-  );
-
-  return {
-    tournamentId: tournament.id,
-    winnerId,
-    prizePool,
-  };
+  await ensureRebuySchema();
+  return withTransaction(async (q) => {
+    // Same lock order as rebuy: a finish and a rebuy cannot cross each other.
+    const [table] = await q<{ status: string }>(
+      "select status from cash_tables where id = $1 for update",
+      [tableId],
+    );
+    if (!table || table.status !== "open") return null;
+    const [runtime] = await q<{
+      phase: string;
+      hand_no: number;
+      settled_hand_no: number;
+    }>(
+      "select phase, hand_no, settled_hand_no from table_runtime where table_id = $1 for update",
+      [tableId],
+    );
+    if (
+      runtime?.phase === "hand" ||
+      (runtime?.phase === "showdown" &&
+        runtime.settled_hand_no !== runtime.hand_no)
+    )
+      return null;
+    const [t] = await q<TournamentRuntime>(
+      "select * from tournaments where table_id = $1 for update",
+      [tableId],
+    );
+    if (!t || t.status !== "running") return null;
+    if (
+      (t.rebuy_until_level ?? 0) > 0 &&
+      t.blind_level <= t.rebuy_until_level! &&
+      t.kind !== "spin"
+    ) {
+      const pending = await q(
+        "select 1 from table_seats where table_id = $1 and member_id is not null and stack <= 0 and rebuy_deadline > now() limit 1",
+        [tableId],
+      );
+      if (pending.length) return null;
+    }
+    const alive = await q<{ member_id: string; is_bot: boolean }>(
+      "select member_id, is_bot from table_seats where table_id = $1 and member_id is not null and stack > 0 order by stack desc",
+      [tableId],
+    );
+    if (alive.length > 1) return null;
+    const winner = alive[0];
+    const winnerId = winner?.member_id ?? null;
+    const prizePool = num(t.prize_pool ?? 0);
+    await q(
+      "update tournaments set status = 'finished', winner_member_id = $2 where id = $1",
+      [t.id, winnerId],
+    );
+    if (winner && !winner.is_bot && prizePool > 0) {
+      await q(
+        "update members set chip_balance = chip_balance + $2 where id = $1",
+        [winnerId, prizePool],
+      );
+      await q(
+        `insert into chip_ledger (id, club_id, member_id, amount, reason, created_by)
+        values ($1,$2,$3,$4,$5,'system')`,
+        [id("led"), t.club_id, winnerId, prizePool, `mtt_win:${t.id}`],
+      );
+    }
+    await q("update cash_tables set status = 'closed' where id = $1", [
+      tableId,
+    ]);
+    await q(
+      `update table_seats set member_id = null, display_name = '', stack = 0, is_bot = false,
+      sitting_out = false, rebuy_deadline = null where table_id = $1`,
+      [tableId],
+    );
+    await q(
+      `update table_runtime set phase = 'finished', state_json = '{}', version = version + 1,
+      updated_at = now() where table_id = $1`,
+      [tableId],
+    );
+    return { tournamentId: t.id, winnerId, prizePool };
+  });
 }
 
 export async function markBustedPlayers(tableId: string) {
@@ -355,4 +379,5 @@ export async function markBustedPlayers(tableId: string) {
      where table_id = $1 and member_id is not null and stack <= 0`,
     [tableId],
   );
+  await offerTournamentRebuys(tableId);
 }
