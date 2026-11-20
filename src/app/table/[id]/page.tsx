@@ -18,7 +18,7 @@ import {
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
 import { FeltPicker } from "../../felt-choice";
 import { avatarSrc, defaultAvatar, sized } from "@/lib/looks";
-import { AvatarPicker, DeckPicker } from "./looks-menu";
+import { AvatarPicker, DeckPicker, FacePicker } from "./looks-menu";
 import "./table-skin.css";
 import { betPoint, demoView, potStacks, seatPoint } from "./table-layout";
 
@@ -190,15 +190,48 @@ function PlayingCard({
     const custom = cardBack !== "back_navy" ? CARD_BACK_STYLES[cardBack] : undefined;
     return <div className="cs-card back" style={custom ? { background: custom } : undefined} />;
   }
-  const red = card[1] === "h" || card[1] === "d";
+  const suit = card[1]!;
+  const red = suit === "h" || suit === "d";
   const rank = card[0] === "T" ? "10" : card[0];
+  // GG-style face: rank top-left, small suit under it, big suit bottom-right
+  // (.rb = big rank, only shown by the "coloured cards" style). See table-looks.css.
   return (
     <div
-      className={`cs-card ${red ? "red" : ""} ${premium ? "premium" : ""} ${blink ? "blink" : ""}`}
+      className={`cs-card suit-${suit} ${red ? "red" : ""} ${premium ? "premium" : ""} ${blink ? "blink" : ""}`}
+      aria-label={`${rank}${SUITS[suit] || suit}`}
     >
       <div className="r">{rank}</div>
-      <div className="s">{SUITS[card[1]!] || card[1]}</div>
+      <div className="ss">
+        <SuitIcon suit={suit} />
+      </div>
+      <div className="s">
+        <SuitIcon suit={suit} />
+      </div>
+      <div className="rb">{rank}</div>
     </div>
+  );
+}
+
+/** Solid suit shapes drawn in the card's colour (emoji suits look different on every phone). */
+function SuitIcon({ suit }: { suit: string }) {
+  return (
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      {suit === "h" ? (
+        <path d="M50 92C22 68 3 50 3 29 3 13 15 3 29 3c10 0 17 6 21 14 4-8 11-14 21-14 14 0 26 10 26 26 0 21-19 39-47 63z" />
+      ) : suit === "d" ? (
+        <path d="M50 2 89 50 50 98 11 50z" />
+      ) : suit === "s" ? (
+        <path d="M50 3C63 24 97 40 97 63c0 14-10 23-23 23-9 0-16-4-20-11 1 9 5 16 13 23H33c8-7 12-14 13-23-4 7-11 11-20 11C13 86 3 77 3 63 3 40 37 24 50 3z" />
+      ) : (
+        <>
+          <circle cx="50" cy="27" r="21" />
+          <circle cx="27" cy="57" r="21" />
+          <circle cx="73" cy="57" r="21" />
+          <circle cx="50" cy="52" r="12" />
+          <path d="M45 52h10c0 20 4 33 14 45H31c10-12 14-25 14-45z" />
+        </>
+      )}
+    </svg>
   );
 }
 
@@ -1290,7 +1323,10 @@ export default function TablePage() {
             <h3>Table colour</h3>
             <FeltPicker />
 
-            <h3>Cards</h3>
+            <h3>Card front</h3>
+            <FacePicker />
+
+            <h3>Card back</h3>
             <DeckPicker />
 
             <h3>Seat</h3>
