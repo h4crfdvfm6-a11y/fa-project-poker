@@ -43,6 +43,7 @@ import {
 } from "./poker/variants";
 import { getMemberCosmetics } from "./shop";
 import { countHandPlayed } from "./time-bank";
+import { applyPendingAddOns, pendingAddOn } from "./table-addon";
 import { cardId } from "./poker/cards";
 import {
   getTournamentByTable,
@@ -782,6 +783,8 @@ export async function getTableView(
           cardBack: cosmetics.equipped_card_back,
         }
       : null,
+    /** chips you asked to add, waiting for the next deal */
+    addonPending: await pendingAddOn(tableId, viewerMemberId),
     actions: legal.actions,
     sizing: legal.sizing,
     phase: runtime.phase,
@@ -874,9 +877,17 @@ async function maybeRunBots(
 async function beginNextHand(tableId: string) {
   await maybeAdvanceTournamentBlinds(tableId);
   const table = await getTable(tableId);
-  const seats = await getSeats(tableId);
+  let seats = await getSeats(tableId);
   const runtime = await readRuntime(tableId);
-  const occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
+  let occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
+  if (occupied.length < 2 && table.format !== "tournament") {
+    // a player who asked to add chips may make it 2 again
+    const live = runtime.state && runtime.phase === "hand" && runtime.state.street !== "showdown";
+    if (!live && (await applyPendingAddOns(tableId).catch(() => 0)) > 0) {
+      seats = await getSeats(tableId);
+      occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
+    }
+  }
   if (occupied.length < 2) {
     await writeRuntime(tableId, {
       phase: "waiting",
@@ -890,6 +901,12 @@ async function beginNextHand(tableId: string) {
   // Another poller may already have started this hand.
   if (runtime.state && runtime.phase === "hand" && runtime.state.street !== "showdown") {
     return;
+  }
+
+  // chips players asked to add go on their stacks now, before the deal
+  if (table.format !== "tournament" && (await applyPendingAddOns(tableId).catch(() => 0)) > 0) {
+    seats = await getSeats(tableId);
+    occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
   }
 
   const gameType = (isGameType(table.game_type) ? table.game_type : "NLH") as GameType;

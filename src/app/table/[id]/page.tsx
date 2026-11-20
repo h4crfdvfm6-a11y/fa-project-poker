@@ -131,6 +131,8 @@ type TableView = {
   timeBankInUse?: boolean;
   /** your free Time Bank cards left */
   timeBank?: number | null;
+  /** chips you asked to add, waiting for the next deal */
+  addonPending?: number;
   cosmetics?: null | { avatar: string; felt: string; cardBack: string };
   actions: Array<{ type: string; label: string; amount?: number }>;
   sizing: null | {
@@ -287,6 +289,11 @@ export default function TablePage() {
     mine: null,
   });
   const [now, setNow] = useState(() => Date.now());
+  // pre-action: tick CHECK / FOLD before your turn (hand number it was ticked for)
+  const [preCheckFold, setPreCheckFold] = useState<number | null>(null);
+  const preFired = useRef("");
+  // add chips at the table (menu → Seat)
+  const [addAmt, setAddAmt] = useState("");
 
   const load = useCallback(async () => {
     if (isDemo) {
@@ -576,6 +583,29 @@ export default function TablePage() {
     await load();
   }
 
+  /** add chips to your stack: straight away between hands, otherwise before the next deal */
+  async function addChips() {
+    if (isDemo) {
+      setError("Demo table — actions are switched off.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/table/${tableId}/addon`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount: Number(addAmt) }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(json.error || "Could not add chips");
+      return;
+    }
+    setAddAmt("");
+    await load();
+  }
+
   async function ofcAutoSet() {
     if (!view?.hand?.draft?.length || view.meSeat == null) return;
     const draft = view.hand.draft;
@@ -682,6 +712,28 @@ export default function TablePage() {
     if (json.emojis) setEmojis(json.emojis);
   }
 
+  // when your turn comes with CHECK / FOLD ticked: check if free, otherwise fold
+  useEffect(() => {
+    if (preCheckFold == null) return;
+    const h = view?.hand;
+    if (!h || h.handNo !== preCheckFold) {
+      setPreCheckFold(null);
+      return;
+    }
+    const mine = h.seats.find((s) => s.seat === view?.meSeat);
+    if (!mine || mine.folded || mine.allIn) {
+      setPreCheckFold(null);
+      return;
+    }
+    if (h.toAct !== view?.meSeat || !view?.actions.length || busy) return;
+    const key = `${h.handNo}:${h.street}:${h.currentBet}`;
+    if (preFired.current === key) return;
+    preFired.current = key;
+    setPreCheckFold(null);
+    void act(view.actions.some((a) => a.type === "check") ? "check" : "fold");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, preCheckFold, busy]);
+
   if (!view) {
     return (
       <main className="cs-room" style={SKIN_VARS}>
@@ -750,7 +802,25 @@ export default function TablePage() {
   const betsOnTable = handSeats.reduce((sum, s) => sum + (s.bet || 0), 0);
   const totalPot = (hand?.pot ?? 0) + betsOnTable;
   const myTurn = seated && hand?.toAct === view.meSeat && view.actions.length > 0;
+  // you're in this hand, it isn't your turn yet, and betting is still going on
+  const preEligible =
+    seated &&
+    !isDemo &&
+    !myTurn &&
+    hand?.mode !== "ofc" &&
+    !hand?.result &&
+    hand?.street !== "waiting" &&
+    hand?.street !== "showdown" &&
+    hand?.toAct != null &&
+    Boolean(me?.hole?.length) &&
+    !me?.folded &&
+    !me?.allIn;
   const occupied = view.seats.filter((s) => !s.empty).length;
+  // add chips: cash tables, up to the table maximum
+  const myStackNow = me?.stack ?? meSeatInfo?.stack ?? 0;
+  const addRoom = Math.max(0, Math.floor(view.table.buyinMax - myStackNow));
+  const canAddChips = seated && !isTournament && !isDemo;
+  const busted = canAddChips && myStackNow <= 0 && !me?.hole?.length && !view.addonPending;
   const winners = hand?.result?.winners ?? [];
   const winnerOf = (seatNo: number) => winners.find((w) => w.seat === seatNo);
   const reactionOf = (seatNo: number) => reactions.find((r) => r.seat === seatNo);
@@ -1210,7 +1280,22 @@ export default function TablePage() {
             </button>
           </div>
 
-          {meSittingOut && !me?.hole?.length && !canShow ? (
+          {busted && !canShow ? (
+            <div className="cs-actions">
+              <button
+                type="button"
+                className="cs-action raise"
+                style={{ gridColumn: "1 / -1" }}
+                disabled={busy}
+                onClick={() => {
+                  setAddAmt(String(view.table.buyinMax));
+                  setMenuOpen(true);
+                }}
+              >
+                ADD CHIPS
+              </button>
+            </div>
+          ) : meSittingOut && !me?.hole?.length && !canShow ? (
             <div className="cs-actions">
               <button
                 type="button"
@@ -1252,14 +1337,33 @@ export default function TablePage() {
             </div>
           ) : (
           <div className="cs-actions">
-            <button
-              type="button"
-              className="cs-action fold"
-              disabled={busy || !myTurn || !foldAction}
-              onClick={() => act("fold")}
-            >
-              FOLD
-            </button>
+            {preEligible ? (
+              // not your turn yet: tick CHECK / FOLD (like GG Poker)
+              <button
+                type="button"
+                className="cs-action fold"
+                style={
+                  preCheckFold === hand?.handNo
+                    ? { boxShadow: "0 0 0 3px #ffd34d", color: "#ffd34d" }
+                    : undefined
+                }
+                onClick={() =>
+                  setPreCheckFold(preCheckFold === hand?.handNo ? null : (hand?.handNo ?? null))
+                }
+              >
+                {preCheckFold === hand?.handNo ? "☑" : "☐"} CHECK
+                <br />/ FOLD
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cs-action fold"
+                disabled={busy || !myTurn || !foldAction}
+                onClick={() => act("fold")}
+              >
+                FOLD
+              </button>
+            )}
             <button
               type="button"
               className="cs-action call"
@@ -1402,6 +1506,55 @@ export default function TablePage() {
                 >
                   {meSittingOut ? "☑ Sitting out — tap to come back" : "☐ Sit out next hand"}
                 </button>
+              </div>
+            ) : null}
+            {canAddChips ? (
+              <div style={{ margin: "2px 0 8px" }}>
+                <div style={{ color: "#9ea8b8", marginBottom: 4 }}>
+                  Add chips (up to {fmt(view.table.buyinMax)} on the table)
+                  {view.addonPending ? (
+                    <b style={{ color: "#ffd34d" }}> · +{fmt(view.addonPending)} added before the next hand</b>
+                  ) : null}
+                </div>
+                <div className="cs-sheet-row">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={addRoom}
+                    value={addAmt}
+                    placeholder={addRoom > 0 ? `max ${fmt(addRoom)}` : "at table max"}
+                    onChange={(e) => setAddAmt(e.target.value)}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: 40,
+                      borderRadius: 10,
+                      border: "1px solid #3a4456",
+                      background: "#0d1320",
+                      color: "#fff",
+                      padding: "0 10px",
+                      fontSize: 16,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="cs-sheet-btn"
+                    disabled={busy || addRoom <= 0}
+                    onClick={() => setAddAmt(String(addRoom))}
+                  >
+                    Max
+                  </button>
+                  <button
+                    type="button"
+                    className="cs-sheet-btn"
+                    style={TICKED}
+                    disabled={busy || addRoom <= 0 || !(Number(addAmt) > 0)}
+                    onClick={() => void addChips()}
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             ) : null}
             {seated && view.timeBank != null ? (
