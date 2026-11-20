@@ -30,4 +30,4 @@ export const ROOMS = [
 export const ROOM_KEY = "sc_room";
 
 /** Runs before the page paints (in layout.tsx) so the chosen table and cards show at once. */
-export const FELT_INIT_SCRIPT = `try{var f=localStorage.getItem("${FELT_KEY}");if(f&&f!=="classic")document.documentElement.setAttribute("data-felt",f);var d=localStorage.getItem("sc_deck");if(d&&d!=="dark")document.documentElement.setAttribute("data-deck",d);var r=localStorage.getItem("sc_room");if(r&&r!=="casino")document.documentElement.setAttribute("data-room",r)}catch(e){}`;
+export const FELT_INIT_SCRIPT = `try{var f=localStorage.getItem("${FELT_KEY}");if(f&&f!=="classic")document.documentElement.setAttribute("data-felt",f);var d=localStorage.getItem("sc_deck");if(d&&d!=="dark")document.documentElement.setAttribute("data-deck",d);var r=localStorage.getItem("sc_room");if(r&&r!=="casino")document.documentElement.setAttribute("data-room",r);var c=localStorage.getItem("sc_face");if(c&&c!=="classic")document.documentElement.setAttribute("data-face",c)}catch(e){}`;

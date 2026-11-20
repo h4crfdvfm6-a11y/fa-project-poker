@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AVATARS, DECKS, DECK_KEY, sized } from "@/lib/looks";
+import { AVATARS, DECKS, DECK_KEY, FACES, FACE_KEY, sized } from "@/lib/looks";
 
 /** Table menu: choose your avatar (everyone sees it). */
 export function AvatarPicker({
@@ -81,6 +81,54 @@ export function DeckPicker() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={sized(d.src, 128)} alt="" className="h-full w-full object-cover" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Table menu: choose the card fronts (on this phone). Each tile is a little ace of clubs. */
+export function FacePicker() {
+  const [face, setFace] = useState("classic");
+
+  useEffect(() => {
+    try {
+      setFace(localStorage.getItem(FACE_KEY) || "classic");
+    } catch {
+      // private mode: classic cards
+    }
+  }, []);
+
+  function choose(id: string) {
+    setFace(id);
+    if (id === "classic") document.documentElement.removeAttribute("data-face");
+    else document.documentElement.setAttribute("data-face", id);
+    try {
+      localStorage.setItem(FACE_KEY, id);
+    } catch {
+      // still used for this visit
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {FACES.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          aria-label={f.label}
+          title={f.label}
+          onClick={() => choose(f.id)}
+          className={`cs-face-tile face-${f.id} shrink-0 overflow-hidden rounded-md p-0`}
+          style={{
+            width: 32,
+            height: 45,
+            border: face === f.id ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
+            boxShadow: face === f.id ? "0 0 8px rgba(255, 211, 77, 0.7)" : "none",
+          }}
+        >
+          <span>A</span>
+          <span>{f.id === "colour" ? "A" : "♣︎"}</span>
         </button>
       ))}
     </div>

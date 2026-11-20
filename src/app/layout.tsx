@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cinzel, Fraunces, Manrope } from "next/font/google";
+import { Cinzel, Fraunces, Manrope, Roboto_Condensed } from "next/font/google";
 import "./globals.css";
 import { FELT_INIT_SCRIPT } from "@/lib/felt";
 
@@ -13,6 +13,13 @@ const logo = Cinzel({
   variable: "--font-logo",
   subsets: ["latin"],
   weight: ["700", "900"],
+});
+
+/** Playing-card ranks (tall bold letters like GG Poker's cards). */
+const cardFont = Roboto_Condensed({
+  variable: "--font-card",
+  subsets: ["latin"],
+  weight: ["700"],
 });
 
 const body = Manrope({
@@ -55,7 +62,7 @@ export default function RootLayout({
         {/* the player's chosen table felt, set before the page paints */}
         <script dangerouslySetInnerHTML={{ __html: FELT_INIT_SCRIPT }} />
       </head>
-      <body className={`${display.variable} ${logo.variable} ${body.variable} antialiased`}>
+      <body className={`${display.variable} ${logo.variable} ${body.variable} ${cardFont.variable} antialiased`}>
         {children}
       </body>
     </html>
