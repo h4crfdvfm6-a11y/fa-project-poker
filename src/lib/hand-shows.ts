@@ -42,10 +42,19 @@ async function readState(tableId: string) {
  * Pick the cards to show (any time during the hand; others only see them once
  * the hand has finished). `cards` replaces any earlier choice.
  */
-export async function setShownCards(tableId: string, memberId: string, cards: string[]) {
+export async function setShownCards(
+  tableId: string,
+  memberId: string,
+  cards: string[],
+  handNo?: number,
+) {
   await ensureShowsSchema();
   const state = await readState(tableId);
   if (!state) throw new Error("No hand to show");
+  // the tap was for the hand that just ended, but the next one is already dealt
+  if (handNo != null && state.handNo !== handNo) {
+    throw new Error("Too late to show — the next hand has started");
+  }
   const seat = state.seats.find((s) => s.memberId === memberId);
   if (!seat || !seat.hole.length) throw new Error("You have no cards this hand");
   // you can choose during the hand too; the cards are only shown once it ends
