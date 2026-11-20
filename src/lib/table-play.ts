@@ -44,6 +44,11 @@ import {
 import { getMemberCosmetics } from "./shop";
 import { countHandPlayed } from "./time-bank";
 import { applyPendingAddOns, pendingAddOn } from "./table-addon";
+import {
+  hasRebuyDecision,
+  offerTournamentRebuys,
+  tournamentRebuyView,
+} from "./tournament-rebuy";
 import { cardId } from "./poker/cards";
 import {
   getTournamentByTable,
@@ -96,9 +101,10 @@ export type SquidRuntime = {
 
 async function ensureRuntime(tableId: string) {
   await ensureTablePlaySchema();
-  const rows = await sql("select table_id from table_runtime where table_id = $1", [
-    tableId,
-  ]);
+  const rows = await sql(
+    "select table_id from table_runtime where table_id = $1",
+    [tableId],
+  );
   if (!rows.length) {
     await sql(
       `insert into table_runtime (table_id, hand_no, button_seat, version, phase, state_json)
@@ -109,11 +115,13 @@ async function ensureRuntime(tableId: string) {
 }
 
 async function getTable(tableId: string, allowClosed = false) {
-  const [table] = await sql<TableRow>("select * from cash_tables where id = $1", [
-    tableId,
-  ]);
+  const [table] = await sql<TableRow>(
+    "select * from cash_tables where id = $1",
+    [tableId],
+  );
   if (!table) throw new Error("Table not found");
-  if (!allowClosed && table.status !== "open") throw new Error("Table not open");
+  if (!allowClosed && table.status !== "open")
+    throw new Error("Table not open");
   return table;
 }
 
@@ -134,7 +142,8 @@ async function readSquid(tableId: string, target = 3): Promise<SquidRuntime> {
     const parsed = JSON.parse(row?.squid_json || "{}") as Partial<SquidRuntime>;
     return {
       pot: Number(parsed.pot || 0),
-      scores: parsed.scores && typeof parsed.scores === "object" ? parsed.scores : {},
+      scores:
+        parsed.scores && typeof parsed.scores === "object" ? parsed.scores : {},
       target: Number(parsed.target || target) || target,
       lastEvent: parsed.lastEvent ?? null,
     };
@@ -245,11 +254,15 @@ async function bankSquidAnte(
     if (!claimed.length) return;
     let squid: SquidRuntime;
     try {
-      const parsed = JSON.parse(claimed[0]!.squid_json || "{}") as Partial<SquidRuntime>;
+      const parsed = JSON.parse(
+        claimed[0]!.squid_json || "{}",
+      ) as Partial<SquidRuntime>;
       squid = {
         pot: Number(parsed.pot || 0),
         scores:
-          parsed.scores && typeof parsed.scores === "object" ? parsed.scores : {},
+          parsed.scores && typeof parsed.scores === "object"
+            ? parsed.scores
+            : {},
         target: Number(parsed.target || table.squid_target || 3) || 3,
         lastEvent: parsed.lastEvent ?? null,
       };
@@ -292,7 +305,8 @@ async function settleSquidShowdown(
     `select squid_ante_hand_no from table_runtime where table_id = $1`,
     [tableId],
   );
-  const anteBanked = Number(anteRows[0]?.squid_ante_hand_no || 0) === state.handNo;
+  const anteBanked =
+    Number(anteRows[0]?.squid_ante_hand_no || 0) === state.handNo;
   if (!anteBanked && state.squidCollected > 0) {
     squid = { ...squid, pot: squid.pot + state.squidCollected };
   }
@@ -325,10 +339,12 @@ async function readRuntime(tableId: string) {
     button_seat: number;
     version: number;
     phase: string;
+    settled_hand_no: number;
     state_json: string;
-  }>("select hand_no, button_seat, version, phase, state_json from table_runtime where table_id = $1", [
-    tableId,
-  ]);
+  }>(
+    "select hand_no, button_seat, version, phase, settled_hand_no, state_json from table_runtime where table_id = $1",
+    [tableId],
+  );
   const state =
     row.state_json && row.state_json !== "{}"
       ? (JSON.parse(row.state_json) as RuntimeState)
@@ -376,27 +392,42 @@ async function writeRuntime(
 
 async function syncStacksFromState(
   tableId: string,
-  state: { seats: Array<{ seat: number; memberId?: string; stack: number }> },
+  state: { handNo: number },
+  settled = false,
 ) {
-  // Only stamp stacks onto the same open-table occupant — never an emptied
-  // or reseated row (leave/sit/close race during showdown settlement).
-  for (const s of state.seats) {
-    if (!s.memberId) continue;
-    await sql(
-      `update table_seats ts
-       set stack = $1
-       from cash_tables t
-       where ts.table_id = $2
-         and ts.seat_no = $3
-         and ts.member_id = $4
-         and t.id = ts.table_id
-         and t.status = 'open'`,
-      [s.stack, tableId, s.seat, s.memberId],
+  await withTransaction(async (q) => {
+    const open = await q(
+      "select id from cash_tables where id = $1 and status = 'open' for update",
+      [tableId],
     );
-  }
+    if (!open.length) return;
+    await q(
+      "select table_id from table_runtime where table_id = $1 for update",
+      [tableId],
+    );
+    // Read the current stored hand under its lock. A slow earlier action must
+    // never overwrite a newer action, a funded top-up, or a successful rebuy.
+    await q(
+      `update table_seats ts set stack = (h ->> 'stack')::numeric
+      from table_runtime r, jsonb_array_elements(r.state_json::jsonb -> 'seats') h
+      where r.table_id = $1 and ts.table_id = r.table_id
+        and ts.member_id = h ->> 'memberId' and ts.seat_no = (h ->> 'seat')::int`,
+      [tableId],
+    );
+    if (settled) {
+      await q(
+        `update table_runtime set settled_hand_no = $2
+        where table_id = $1 and hand_no = $2 and phase = 'showdown'`,
+        [tableId, state.handNo],
+      );
+    }
+  });
 }
 
-async function claimHandEconomy(tableId: string, handNo: number): Promise<boolean> {
+async function claimHandEconomy(
+  tableId: string,
+  handNo: number,
+): Promise<boolean> {
   await ensureRuntime(tableId);
   const claimed = await sql(
     `update table_runtime r
@@ -480,7 +511,6 @@ async function applyHandEconomy(tableId: string, state: EngineState) {
       );
     }
   }
-  await syncStacksFromState(tableId, state);
   // Persist BBJP awards for this hand only — never clobber a newer deal.
   await sql(
     `update table_runtime r
@@ -493,6 +523,7 @@ async function applyHandEconomy(tableId: string, state: EngineState) {
        and r.phase = 'showdown'`,
     [tableId, JSON.stringify(state), state.handNo],
   );
+  await syncStacksFromState(tableId, state);
 }
 
 function maskMemberId(
@@ -632,7 +663,12 @@ export async function getTableView(
   const viewerSeatedEarly = Boolean(
     viewerMemberId && seats.some((s) => s.member_id === viewerMemberId),
   );
-  if (table.is_private && !opts.advance && !viewerSeatedEarly && !viewerMemberId) {
+  if (
+    table.is_private &&
+    !opts.advance &&
+    !viewerSeatedEarly &&
+    !viewerMemberId
+  ) {
     throw new Error("Private table — join the club first");
   }
   if (seats.length !== table.seats) {
@@ -653,7 +689,11 @@ export async function getTableView(
   // Only seated players (or explicit admin advance) may drive bots / next hand / MTT finish.
   const canAdvance = Boolean(opts.advance) || viewerSeated;
 
-  if (canAdvance && table.status === "open" && tournament?.status === "running") {
+  if (
+    canAdvance &&
+    table.status === "open" &&
+    tournament?.status === "running"
+  ) {
     tournament = (await maybeAdvanceTournamentBlinds(tableId)) ?? tournament;
   }
 
@@ -667,25 +707,43 @@ export async function getTableView(
     runtime = await maybeRunBots(tableId, runtime);
   }
 
+  if (tournament?.status === "running" && runtime.phase === "showdown") {
+    await offerTournamentRebuys(tableId);
+  }
+
+  if (
+    canAdvance &&
+    table.format !== "tournament" &&
+    runtime.phase === "waiting"
+  ) {
+    if (await applyPendingAddOns(tableId)) {
+      seats = await getSeats(tableId);
+      runtime = await readRuntime(tableId);
+    }
+  }
+
   // auto-start next hand after short showdown pause
   if (canAdvance && table.status === "open") {
     if (
       runtime.state &&
       runtime.state.street === "showdown" &&
+      runtime.settled_hand_no === runtime.hand_no &&
       runtime.state.endedAt &&
       // long enough for everyone to see the result and tap SHOW on their cards
       Date.now() - runtime.state.endedAt > SHOWDOWN_PAUSE_MS
     ) {
       await markBustedPlayers(tableId);
       const finishedNow = await maybeFinishTournament(tableId);
-      if (!finishedNow) {
+      if (!finishedNow && !(await hasRebuyDecision(tableId))) {
         await beginNextHand(tableId);
       }
       runtime = await readRuntime(tableId);
       tournament = (await getTournamentByTable(tableId)) ?? tournament;
     } else if (!runtime.state || runtime.phase === "waiting") {
       // players sitting out don't count: no point dealing until 2 can play
-      const occupied = seats.filter((s) => s.member_id && num(s.stack) > 0 && !s.sitting_out);
+      const occupied = seats.filter(
+        (s) => s.member_id && num(s.stack) > 0 && !s.sitting_out,
+      );
       if (occupied.length >= 2) {
         await beginNextHand(tableId);
         runtime = await readRuntime(tableId);
@@ -700,23 +758,22 @@ export async function getTableView(
   const refreshed = await getTable(tableId, true);
   seats = await getSeats(tableId);
   const bbjp = await getBbjp();
-  const mySeat = runtime.state?.seats.find((s) => s.memberId === viewerMemberId);
+  const mySeat = runtime.state?.seats.find(
+    (s) => s.memberId === viewerMemberId,
+  );
   const ofcHand = isOfcState(runtime.state);
   const legal =
     runtime.state && mySeat && refreshed.status === "open" && !ofcHand
       ? legalActions(runtime.state as EngineState, mySeat.seat)
       : { actions: [], sizing: null };
   const myTableSeat = seats.find((s) => s.member_id === viewerMemberId);
-  const gameType = (isGameType(refreshed.game_type)
-    ? refreshed.game_type
-    : "NLH") as GameType;
+  const gameType = (
+    isGameType(refreshed.game_type) ? refreshed.game_type : "NLH"
+  ) as GameType;
   const masked = maskState(runtime.state, viewerMemberId);
   const myLive = masked?.seats.find((s) => s.memberId === viewerMemberId);
   const handStrength =
-    !ofcHand &&
-    myLive &&
-    myLive.hole.length &&
-    !myLive.hole.includes("xx")
+    !ofcHand && myLive && myLive.hole.length && !myLive.hole.includes("xx")
       ? describeMadeHand(myLive.hole, masked?.board ?? [], gameType)
       : null;
   let cosmetics: Awaited<ReturnType<typeof getMemberCosmetics>> | null = null;
@@ -783,6 +840,10 @@ export async function getTableView(
           cardBack: cosmetics.equipped_card_back,
         }
       : null,
+    rebuy: tournament
+      ? await tournamentRebuyView(tableId, viewerMemberId)
+      : null,
+    rebuyWaiting: tournament ? await hasRebuyDecision(tableId) : false,
     /** chips you asked to add, waiting for the next deal */
     addonPending: await pendingAddOn(tableId, viewerMemberId),
     actions: legal.actions,
@@ -841,7 +902,7 @@ async function maybeRunBots(
       if (next.street === "showdown") {
         await markBustedPlayers(tableId);
       }
-      await syncStacksFromState(tableId, next);
+      await syncStacksFromState(tableId, next, next.street === "showdown");
       current = await readRuntime(tableId);
       continue;
     }
@@ -868,7 +929,7 @@ async function maybeRunBots(
       await applyHandEconomy(tableId, next);
       await markBustedPlayers(tableId);
     }
-    await syncStacksFromState(tableId, next);
+    await syncStacksFromState(tableId, next, next.street === "showdown");
     current = await readRuntime(tableId);
   }
   return current;
@@ -877,39 +938,35 @@ async function maybeRunBots(
 async function beginNextHand(tableId: string) {
   await maybeAdvanceTournamentBlinds(tableId);
   const table = await getTable(tableId);
-  let seats = await getSeats(tableId);
-  const runtime = await readRuntime(tableId);
-  let occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
-  if (occupied.length < 2 && table.format !== "tournament") {
-    // a player who asked to add chips may make it 2 again
-    const live = runtime.state && runtime.phase === "hand" && runtime.state.street !== "showdown";
-    if (!live && (await applyPendingAddOns(tableId).catch(() => 0)) > 0) {
-      seats = await getSeats(tableId);
-      occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
-    }
+  let runtime = await readRuntime(tableId);
+  if (
+    runtime.phase === "hand" ||
+    (runtime.phase === "showdown" &&
+      runtime.settled_hand_no !== runtime.hand_no)
+  )
+    return;
+  if (table.format === "tournament" && (await hasRebuyDecision(tableId)))
+    return;
+  if (table.format !== "tournament" && (await applyPendingAddOns(tableId))) {
+    runtime = await readRuntime(tableId);
   }
+  const seats = await getSeats(tableId);
+  const occupied = seats.filter(
+    (s) => s.member_id && num(s.stack) > 0 && !s.sitting_out,
+  );
   if (occupied.length < 2) {
     await writeRuntime(tableId, {
       phase: "waiting",
       state: null,
       version: runtime.version + 1,
     });
-    await maybeFinishTournament(tableId);
+    if (table.format === "tournament") await maybeFinishTournament(tableId);
     return;
   }
 
-  // Another poller may already have started this hand.
-  if (runtime.state && runtime.phase === "hand" && runtime.state.street !== "showdown") {
-    return;
-  }
-
-  // chips players asked to add go on their stacks now, before the deal
-  if (table.format !== "tournament" && (await applyPendingAddOns(tableId).catch(() => 0)) > 0) {
-    seats = await getSeats(tableId);
-    occupied = seats.filter((s) => s.member_id && num(s.stack) > 0);
-  }
-
-  const gameType = (isGameType(table.game_type) ? table.game_type : "NLH") as GameType;
+  const gameType = (
+    isGameType(table.game_type) ? table.game_type : "NLH"
+  ) as GameType;
   const isTournament = table.format === "tournament";
   const handNo = runtime.hand_no + 1;
   const button =
@@ -964,7 +1021,7 @@ async function beginNextHand(tableId: string) {
       version: runtime.version + 1,
     });
     if (!wrote) return;
-    await syncStacksFromState(tableId, ofc);
+    await syncStacksFromState(tableId, ofc, ofc.street === "showdown");
     await maybeRunBots(tableId, await readRuntime(tableId));
     return;
   }
@@ -1032,7 +1089,9 @@ async function beginNextHand(tableId: string) {
   // free Time Bank cards: every hand dealt counts (1 card per 25 hands)
   if (state.street !== "waiting") {
     await countHandPlayed(
-      state.seats.filter((s) => s.hole.length > 0 && !s.isBot && s.memberId).map((s) => s.memberId),
+      state.seats
+        .filter((s) => s.hole.length > 0 && !s.isBot && s.memberId)
+        .map((s) => s.memberId),
     ).catch(() => undefined);
   }
   if (squidEnabled) {
@@ -1043,7 +1102,7 @@ async function beginNextHand(tableId: string) {
     await applyHandEconomy(tableId, state);
     await markBustedPlayers(tableId);
   }
-  await syncStacksFromState(tableId, state);
+  await syncStacksFromState(tableId, state, state.street === "showdown");
   await maybeRunBots(tableId, await readRuntime(tableId));
 }
 
@@ -1095,7 +1154,8 @@ export async function sitAtTable(
     [memberId],
   );
   if (!member) throw new Error("Player not found");
-  if (num(member.chip_balance) < buyIn) throw new Error("Not enough club chips");
+  if (num(member.chip_balance) < buyIn)
+    throw new Error("Not enough club chips");
 
   // Debit first, then claim the seat already funded. Never leave a stack=0
   // "pending" seat that close can wipe while buy-in is still in flight.
@@ -1259,7 +1319,8 @@ export async function addBot(tableId: string, seatNo?: number) {
   }
   const open = (await getSeats(tableId)).filter((s) => !s.member_id);
   if (!open.length) throw new Error("No empty seats");
-  const seat = seatNo != null ? open.find((s) => s.seat_no === seatNo) : open[0];
+  const seat =
+    seatNo != null ? open.find((s) => s.seat_no === seatNo) : open[0];
   if (!seat) throw new Error("Seat not free");
   const buyIn = num(table.buyin_min);
   // Fund AI stacks from the club bot float so wins cannot mint unbacked chips.
@@ -1320,7 +1381,7 @@ export async function playerOfcSet(
   if (next.street === "showdown") {
     await markBustedPlayers(tableId);
   }
-  await syncStacksFromState(tableId, next);
+  await syncStacksFromState(tableId, next, next.street === "showdown");
   await maybeRunBots(tableId, await readRuntime(tableId));
   return getTableView(tableId, memberId);
 }
@@ -1363,7 +1424,7 @@ export async function playerAction(
     await applyHandEconomy(tableId, next);
     await markBustedPlayers(tableId);
   }
-  await syncStacksFromState(tableId, next);
+  await syncStacksFromState(tableId, next, next.street === "showdown");
   await maybeRunBots(tableId, await readRuntime(tableId));
   return getTableView(tableId, memberId);
 }
@@ -1381,7 +1442,10 @@ export type SizingInfo = {
   presets: number[];
 };
 
-export function legalActions(state: EngineState, seatNo: number): {
+export function legalActions(
+  state: EngineState,
+  seatNo: number,
+): {
   actions: LegalAction[];
   sizing: SizingInfo | null;
 } {
@@ -1467,11 +1531,19 @@ export function legalActions(state: EngineState, seatNo: number): {
           max: maxTo,
           presets: uniquePresets(minTo, maxTo, state.bb, publicPot(state)),
         };
-        actions.push({ type: "raise", label: `Raise to ${minTo}`, amount: minTo });
+        actions.push({
+          type: "raise",
+          label: `Raise to ${minTo}`,
+          amount: minTo,
+        });
       }
     }
     // All-in always allowed for remaining stack (may exceed pot-limit).
-    actions.push({ type: "allin", label: `All-in ${stackMax}`, amount: stackMax });
+    actions.push({
+      type: "allin",
+      label: `All-in ${stackMax}`,
+      amount: stackMax,
+    });
   }
   return { actions, sizing };
 }

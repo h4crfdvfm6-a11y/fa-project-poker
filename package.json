@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/poker/*.test.ts"
+    "test": "node --import tsx --test src/lib/poker/*.test.ts src/lib/*.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",

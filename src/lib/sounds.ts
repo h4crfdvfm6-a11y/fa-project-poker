@@ -9,33 +9,56 @@ let ctx: AudioContext | null = null;
 function audio(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
-    ctx ??= new AudioContext();
-    // Phones start audio "suspended" until the player taps — wake it up.
-    if (ctx.state === "suspended") void ctx.resume();
+    const Audio =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Audio) return null;
+    if (!ctx || ctx.state === "closed") ctx = new Audio();
+    // Safari can also enter "interrupted" after a call, lock, or app switch.
+    if (ctx.state !== "running") void ctx.resume().catch(() => undefined);
     return ctx;
   } catch {
     return null;
   }
 }
 
-// Unlock sound on the first tap anywhere (iPhone/Android block audio until then).
-if (typeof window !== "undefined") {
+/** Called on every gesture, including after returning from the phone lock screen. */
+export async function unlockSounds() {
+  const a = audio();
+  if (!a) return false;
+  try {
+    if (a.state !== "running") await a.resume();
+    const source = a.createBufferSource();
+    source.buffer = a.createBuffer(1, 1, a.sampleRate);
+    source.connect(a.destination);
+    source.start();
+    loadSamples();
+    return a.state === "running";
+  } catch {
+    return false; // keep the gesture listeners so the next tap can retry
+  }
+}
+
+export function listenForSoundUnlock() {
   const unlock = () => {
-    const a = audio();
-    if (a) {
-      const o = a.createOscillator();
-      const g = a.createGain();
-      g.gain.value = 0;
-      o.connect(g);
-      g.connect(a.destination);
-      o.start();
-      o.stop(a.currentTime + 0.01);
-    }
-    window.removeEventListener("pointerdown", unlock);
-    window.removeEventListener("touchend", unlock);
+    void unlockSounds();
   };
-  window.addEventListener("pointerdown", unlock);
+  const visible = () => {
+    if (document.visibilityState === "visible") unlock();
+  };
+  window.addEventListener("pointerup", unlock);
   window.addEventListener("touchend", unlock);
+  window.addEventListener("keydown", unlock);
+  window.addEventListener("focus", unlock);
+  document.addEventListener("visibilitychange", visible);
+  return () => {
+    window.removeEventListener("pointerup", unlock);
+    window.removeEventListener("touchend", unlock);
+    window.removeEventListener("keydown", unlock);
+    window.removeEventListener("focus", unlock);
+    document.removeEventListener("visibilitychange", visible);
+  };
 }
 
 export type SoundKind =
@@ -53,15 +76,27 @@ export type SoundKind =
   | "collect";
 
 const MUTE_KEY = "fa_mute_sounds";
+let mutedForVisit = false;
 
 export function soundsMuted(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(MUTE_KEY) === "1";
+  try {
+    mutedForVisit = localStorage.getItem(MUTE_KEY) === "1";
+  } catch {
+    /* restricted storage */
+  }
+  return mutedForVisit;
 }
 
 export function setSoundsMuted(muted: boolean) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+  mutedForVisit = muted;
+  try {
+    localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+  } catch {
+    /* keep the choice for this visit */
+  }
+  if (!muted) void unlockSounds();
 }
 
 /* ---------- recorded sounds from the original table ---------- */
@@ -82,10 +117,14 @@ function loadSamples() {
   loading = true;
   (Object.keys(SAMPLE_FILES) as Sample[]).forEach((k) => {
     fetch(SAMPLE_FILES[k])
-      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error("missing"))))
+      .then((r) =>
+        r.ok ? r.arrayBuffer() : Promise.reject(new Error("missing")),
+      )
       .then(
         (data) =>
-          new Promise<AudioBuffer>((resolve, reject) => a.decodeAudioData(data, resolve, reject)),
+          new Promise<AudioBuffer>((resolve, reject) =>
+            a.decodeAudioData(data, resolve, reject),
+          ),
       )
       .then((buf) => {
         buffers[k] = buf;
@@ -118,7 +157,12 @@ if (typeof window !== "undefined") {
   setTimeout(loadSamples, 0);
 }
 
-function beep(freq: number, dur = 0.08, type: OscillatorType = "sine", gain = 0.04) {
+function beep(
+  freq: number,
+  dur = 0.08,
+  type: OscillatorType = "sine",
+  gain = 0.04,
+) {
   if (soundsMuted()) return;
   const a = audio();
   if (!a) return;

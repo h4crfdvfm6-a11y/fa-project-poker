@@ -1,5 +1,7 @@
-import { sql } from "./db";
-import { num, sendChips } from "./club";
+import { sql, withTransaction } from "./db";
+import { num } from "./club";
+import { id } from "./ids";
+import { ensureTablePlaySchema } from "./table-schema";
 
 /**
  * Add chips at the table (cash games only), like GG Poker's "Add chips".
@@ -8,28 +10,42 @@ import { num, sendChips } from "./club";
  * are actually added, so nothing needs refunding if you leave first.
  * Your stack can't go above the table's maximum buy-in.
  */
-export async function requestAddOn(tableId: string, memberId: string, amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter how many chips to add");
+export async function requestAddOn(
+  tableId: string,
+  memberId: string,
+  amount: number,
+) {
+  await ensureTablePlaySchema();
+  if (!Number.isSafeInteger(amount) || amount <= 0)
+    throw new Error("Enter how many chips to add");
   amount = Math.floor(amount);
-  const [table] = await sql<{ format: string; status: string; buyin_max: string | number }>(
-    `select format, status, buyin_max from cash_tables where id = $1`,
-    [tableId],
-  );
+  const [table] = await sql<{
+    format: string;
+    status: string;
+    buyin_max: string | number;
+  }>(`select format, status, buyin_max from cash_tables where id = $1`, [
+    tableId,
+  ]);
   if (!table || table.status !== "open") throw new Error("Table not open");
-  if (table.format === "tournament") throw new Error("No adding chips in tournaments");
+  if (table.format === "tournament")
+    throw new Error("No adding chips in tournaments");
   const [seat] = await sql<{ stack: string | number; is_bot: boolean }>(
     `select stack, is_bot from table_seats where table_id = $1 and member_id = $2`,
     [tableId, memberId],
   );
   if (!seat || seat.is_bot) throw new Error("Not seated");
   const room = num(table.buyin_max) - num(seat.stack);
-  if (room <= 0) throw new Error(`You already have the table maximum (${num(table.buyin_max)})`);
+  if (room <= 0)
+    throw new Error(
+      `You already have the table maximum (${num(table.buyin_max)})`,
+    );
   if (amount > room) throw new Error(`You can add up to ${Math.floor(room)}`);
   const [member] = await sql<{ chip_balance: string | number }>(
     `select chip_balance from members where id = $1`,
     [memberId],
   );
-  if (!member || num(member.chip_balance) < amount) throw new Error("Not enough club chips");
+  if (!member || num(member.chip_balance) < amount)
+    throw new Error("Not enough club chips");
 
   await sql(
     `insert into table_addons (table_id, member_id, amount) values ($1, $2, $3)
@@ -43,8 +59,8 @@ export async function requestAddOn(tableId: string, memberId: string, amount: nu
     [tableId],
   );
   if (!rt || rt.phase === "waiting") {
-    await applyPendingAddOns(tableId);
-    return { added: true };
+    const added = await applyPendingAddOns(tableId);
+    return { added: added > 0 };
   }
   return { added: false };
 }
@@ -65,37 +81,85 @@ export async function pendingAddOn(tableId: string, memberId: string | null) {
  * poller ever adds them.
  */
 export async function applyPendingAddOns(tableId: string) {
-  const claimed = await sql<{ member_id: string; amount: string | number }>(
-    `delete from table_addons where table_id = $1 returning member_id, amount`,
-    [tableId],
-  ).catch(() => [] as Array<{ member_id: string; amount: string | number }>);
-  let applied = 0;
-  for (const row of claimed) {
-    const [seat] = await sql<{ stack: string | number; buyin_max: string | number }>(
-      `select s.stack, t.buyin_max
-       from table_seats s join cash_tables t on t.id = s.table_id
-       where s.table_id = $1 and s.member_id = $2 and s.is_bot = false and t.status = 'open'`,
-      [tableId, row.member_id],
+  return withTransaction(async (q) => {
+    const [table] = await q<{
+      status: string;
+      format: string;
+      buyin_max: string;
+      club_id: string;
+    }>(
+      "select status, format, buyin_max, club_id from cash_tables where id = $1 for update",
+      [tableId],
     );
-    if (!seat) continue; // left the table: nothing was taken
-    const add = Math.min(num(row.amount), Math.max(0, num(seat.buyin_max) - num(seat.stack)));
-    if (add <= 0) continue;
-    try {
-      await sendChips(row.member_id, -add, `table_addon:${tableId}`);
-    } catch {
-      continue; // not enough club chips any more
-    }
-    const updated = await sql(
-      `update table_seats set stack = stack + $3
-       where table_id = $1 and member_id = $2
-       returning seat_no`,
-      [tableId, row.member_id, add],
+    if (!table || table.status !== "open" || table.format === "tournament")
+      return 0;
+    const [runtime] = await q<{
+      phase: string;
+      state_json: string;
+      hand_no: number;
+      settled_hand_no: number;
+    }>(
+      "select phase, state_json, hand_no, settled_hand_no from table_runtime where table_id = $1 for update",
+      [tableId],
     );
-    if (!updated.length) {
-      await sendChips(row.member_id, add, `table_addon_refund:${tableId}`);
-      continue;
+    // Requests can be made mid-hand; only a between-hand caller may fund them.
+    if (runtime?.phase === "hand") return 0;
+    if (
+      runtime?.phase === "showdown" &&
+      runtime.settled_hand_no !== runtime.hand_no
+    )
+      return 0;
+    const claimed = await q<{ member_id: string; amount: string }>(
+      "delete from table_addons where table_id = $1 returning member_id, amount",
+      [tableId],
+    );
+    const state = runtime?.state_json ? JSON.parse(runtime.state_json) : {};
+    let applied = 0;
+    for (const row of claimed) {
+      const [seat] = await q<{ stack: string }>(
+        "select stack from table_seats where table_id = $1 and member_id = $2 and is_bot = false for update",
+        [tableId, row.member_id],
+      );
+      if (!seat) continue;
+      const add = Math.min(
+        num(row.amount),
+        Math.max(0, num(table.buyin_max) - num(seat.stack)),
+      );
+      if (add <= 0) continue;
+      const paid = await q(
+        `update members set chip_balance = chip_balance - $2
+        where id = $1 and status = 'active' and chip_balance >= $2 returning id`,
+        [row.member_id, add],
+      );
+      if (!paid.length) continue;
+      await q(
+        `insert into chip_ledger (id, club_id, member_id, amount, reason, created_by)
+        values ($1,$2,$3,$4,$5,'player')`,
+        [
+          id("led"),
+          table.club_id,
+          row.member_id,
+          -add,
+          `table_addon:${tableId}`,
+        ],
+      );
+      await q(
+        "update table_seats set stack = stack + $3, sitting_out = false where table_id = $1 and member_id = $2",
+        [tableId, row.member_id, add],
+      );
+      const current = state.seats?.find(
+        (s: { memberId: string }) => s.memberId === row.member_id,
+      );
+      if (current) current.stack = num(seat.stack) + add;
+      applied++;
     }
-    applied++;
-  }
-  return applied;
+    if (applied && runtime) {
+      // Invalidate any concurrent next-deal snapshot and show the new stack immediately.
+      await q(
+        "update table_runtime set state_json = $2, version = version + 1, updated_at = now() where table_id = $1",
+        [tableId, JSON.stringify(state)],
+      );
+    }
+    return applied;
+  });
 }

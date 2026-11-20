@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     startsAt?: string | null;
     kind?: "mtt" | "spin";
     gameType?: string;
+    rebuyUntilLevel?: number;
   };
   const gameType = body.gameType && isGameType(body.gameType) ? body.gameType : "NLH";
   if (isOfc(gameType)) {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       startsAt: body.startsAt ?? null,
       kind: body.kind === "spin" ? "spin" : "mtt",
       gameType,
+      rebuyUntilLevel: Number(body.rebuyUntilLevel ?? 0),
     });
     return Response.json({ tournament });
   } catch (error) {
