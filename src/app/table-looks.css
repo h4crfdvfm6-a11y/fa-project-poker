@@ -210,3 +210,28 @@ main.cs-room::after {
   color: #ffd34d;
   border-color: #ffd34d;
 }
+
+/* Plain rooms draw the table over a solid backdrop, with a separate felt color. */
+html[data-room="gray"] { --room-floor: #50535a; }
+html[data-room="black"] { --room-floor: #101115; }
+html[data-room="navy"] { --room-floor: #111f38; }
+
+html:is([data-room="gray"], [data-room="black"], [data-room="navy"]) main.cs-room {
+  --plain-felt: var(--room-felt, #1f8a4c);
+  background:
+    radial-gradient(ellipse closest-side at center, var(--plain-felt) 0 86%, #77634a 87%, #302821 92%, #151418 98%, transparent 100%)
+      center 51% / min(94vw, 560px) 74% no-repeat,
+    var(--room-floor);
+}
+
+html[data-felt="blue"] main.cs-room { --room-felt: #0538a0; }
+html[data-felt="red"] main.cs-room { --room-felt: #8b0511; }
+html[data-felt="charcoal"] main.cs-room { --room-felt: #3a3937; }
+html[data-felt="purple"] main.cs-room { --room-felt: #4a0a4c; }
+html[data-felt="teal"] main.cs-room { --room-felt: #046e6c; }
+
+@media (orientation: landscape) {
+  html:is([data-room="gray"], [data-room="black"], [data-room="navy"]) main.cs-room {
+    background-size: min(83vw, 1080px) 66%;
+  }
+}

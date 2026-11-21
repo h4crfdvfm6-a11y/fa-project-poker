@@ -25,6 +25,9 @@ export const ROOMS = [
   { id: "lighthouse", label: "Lighthouse", src: "/banners/room-lighthouse.jpg" },
   { id: "cove", label: "Boathouse cove", src: "/banners/room-cove.jpg" },
   { id: "ship", label: "Ship deck", src: "/banners/room-ship.jpg" },
+  { id: "gray", label: "Plain gray", color: "#50535a" },
+  { id: "black", label: "Plain black", color: "#101115" },
+  { id: "navy", label: "Plain navy", color: "#111f38" },
 ] as const;
 
 export const ROOM_KEY = "sc_room";
