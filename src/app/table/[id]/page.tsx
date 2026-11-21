@@ -18,6 +18,7 @@ import {
   soundsMuted,
 } from "@/lib/sounds";
 import { AVATAR_GLYPH, CARD_BACK_STYLES } from "@/lib/cosmetics";
+import { LOGO_NAME_SRC } from "../../brand-mark";
 import { FeltPicker, RoomPicker } from "../../felt-choice";
 import { avatarSrc, defaultAvatar, sized } from "@/lib/looks";
 import { AvatarPicker, DeckPicker, FacePicker } from "./looks-menu";
@@ -213,8 +214,11 @@ const OFC_ROWS = [
 ] as const;
 type OfcRow = (typeof OFC_ROWS)[number]["id"];
 
-function OfcBoard({ hand, meSeat, busy, submit }: {
+function OfcBoard({ hand, meSeat, busy, submit, avatarBySeat, cardBack, gameType }: {
   hand: NonNullable<TableView["hand"]>;
+  avatarBySeat: Record<string, string>;
+  cardBack?: string;
+  gameType: string;
   meSeat: number | null;
   busy: boolean;
   submit: (placements: { cardIndex: number; row: OfcRow }[], discardIndex: number | number[] | null) => Promise<void>;
@@ -242,46 +246,67 @@ function OfcBoard({ hand, meSeat, busy, submit }: {
     setSelected(null);
   }
 
-  return (
-    <section className="cs-ofc cs-ofc-board" aria-label="Open-Face Chinese Poker">
-      <div className="cs-ofc-tables">
-        {[...hand.seats].sort((a, b) => Number(b.seat === meSeat) - Number(a.seat === meSeat)).map((seat) => {
-          const own = seat.seat === meSeat;
+  const ownSeat = hand.seats.find((seat) => seat.seat === meSeat);
+  const opponents = hand.seats.filter((seat) => seat.seat !== meSeat);
+
+  function renderSeat(seat: typeof hand.seats[number], own = false) {
+    const result = hand.result?.rows?.find((row) => row.seat === seat.seat);
+    const avatar = avatarSrc(avatarBySeat[String(seat.seat)] ?? defaultAvatar(seat.name));
+    const acting = seat.seat === hand.toAct;
+    return (
+      <section key={seat.seat} className={own ? "cs-ofc-own" : "cs-ofc-opponent"} aria-label={own ? "Your board" : seat.name}>
+        <div className={`cs-ofc-seat-name${acting ? " active" : ""}`}>
+          {avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={sized(avatar, 128)} alt="" />
+          ) : <span aria-hidden="true">{avatarFor(seat.name, seat.isBot)}</span>}
+          <b>{own ? "You" : seat.name}</b>
+          <span>{seat.stack.toLocaleString()}</span>
+          {seat.seat === hand.button && <span className="cs-ofc-dealer" aria-label="Dealer">D</span>}
+          {acting && <small>{own ? "Your turn" : "Setting"}</small>}
+        </div>
+        {OFC_ROWS.map(({ id, label, size }) => {
+          const cards = seat.ofc?.[id] ?? [];
+          const pending = own ? placements.filter((entry) => entry.row === id) : [];
+          const occupied = cards.length + pending.length;
           return (
-            <div key={seat.seat} className={own ? "cs-ofc-own" : "cs-ofc-opponent"}>
-              <b>{own ? "Your board" : seat.name}{seat.seat === hand.toAct ? " · Setting" : ""}</b>
-              {OFC_ROWS.map(({ id, label, size }) => {
-                const cards = seat.ofc?.[id] ?? [];
-                const pending = own ? placements.filter((entry) => entry.row === id) : [];
-                const occupied = cards.length + pending.length;
-                return (
-                  <div key={id} className="cs-ofc-row">
-                    <span>{label}</span>
-                    {cards.map((card, index) => <PlayingCard key={index} card={card} />)}
-                    {pending.map(({ cardIndex }) => (
-                      <button key={cardIndex} type="button" aria-label={`Move ${draft[cardIndex]}`} aria-pressed={selected === cardIndex} onClick={() => setSelected(cardIndex)} disabled={busy}>
-                        <PlayingCard card={draft[cardIndex]!} />
-                      </button>
-                    ))}
-                    {Array.from({ length: size - occupied }, (_, index) => own && draft.length ? (
-                      <button key={index} type="button" className="cs-ofc-slot" aria-label={`Place in ${label.toLowerCase()}, slot ${occupied + index + 1}`} disabled={busy || selected === null} onClick={() => assign(id)} />
-                    ) : <i key={index} className="cs-ofc-slot" />)}
-                  </div>
-                );
-              })}
+            <div key={id} className="cs-ofc-row" aria-label={label}>
+              {own && <span>{label}</span>}
+              {cards.map((card, index) => <PlayingCard key={`set-${index}`} card={card} cardBack={cardBack} />)}
+              {pending.map(({ cardIndex }) => (
+                <button key={`pending-${cardIndex}`} type="button" aria-label={`Move ${draft[cardIndex]}`} aria-pressed={selected === cardIndex} onClick={() => setSelected(cardIndex)} disabled={busy}>
+                  <PlayingCard card={draft[cardIndex]!} />
+                </button>
+              ))}
+              {Array.from({ length: Math.max(0, size - occupied) }, (_, index) => own && draft.length ? (
+                <button key={`slot-${index}`} type="button" className="cs-ofc-slot" aria-label={`Place in ${label.toLowerCase()}, slot ${occupied + index + 1}`} disabled={busy || selected === null} onClick={() => assign(id)} />
+              ) : <i key={`slot-${index}`} className="cs-ofc-slot" />)}
             </div>
           );
         })}
+        {result && (
+          <div className="cs-ofc-result">
+            {result.fouled ? "Foul" : `${result.front} / ${result.middle} / ${result.back}`}
+            {result.fantasyNext ? " · Fantasyland next" : ""}
+            {result.delta != null ? ` · ${result.delta >= 0 ? "+" : ""}${result.delta.toLocaleString()}` : ""}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="cs-ofc-board" aria-label="Open-Face Chinese Poker">
+      <div className="cs-ofc-opponents">{opponents.map((seat) => renderSeat(seat))}</div>
+      <div className="cs-ofc-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={LOGO_NAME_SRC} alt="Shark Club" />
+        <span>{gameType === "OFC_JOKER_ULTIMATE" ? "Joker Ultimate" : "Pineapple OFC"}{hand.unit ? ` · ${hand.unit.toLocaleString()} per point` : ""}</span>
       </div>
-      {hand.result?.rows?.map((row, index) => (
-        <div key={row.seat ?? index}>
-          Seat {(row.seat ?? index) + 1} · {row.fouled ? "Foul" : `${row.front} / ${row.middle} / ${row.back}`}
-          {row.fantasyNext ? " · Fantasyland next" : ""}
-          {row.delta != null ? ` · ${row.delta >= 0 ? "+" : ""}${row.delta.toLocaleString()}` : ""}
-        </div>
-      ))}
+      {ownSeat && renderSeat(ownSeat, true)}
+      {!draft.length && ownSeat && <p className="cs-ofc-status">{hand.result ? "Hand complete" : "Waiting for the other players…"}</p>}
       {draft.length > 0 && (
-        <>
+        <div className="cs-ofc-tray">
           <p>{discardCount ? `Place ${required} and discard ${discardCount}.` : "Place all five cards."} Tap a card, then an empty slot.</p>
           <div className="cs-row">
             {draft.map((card, index) => (
@@ -296,7 +321,7 @@ function OfcBoard({ hand, meSeat, busy, submit }: {
             <button type="button" disabled={busy || !Object.keys(choices).length} onClick={() => { setChoices({}); setSelected(null); }}>Reset</button>
             <button type="button" disabled={busy || !ready} onClick={() => void submit(placements, discarded.length ? discarded : null)}>Confirm</button>
           </div>
-        </>
+        </div>
       )}
     </section>
   );
@@ -1158,7 +1183,7 @@ export default function TablePage() {
       ) : null}
 
       {/* ---------- table ---------- */}
-      <div className="cs-table">
+      <div className="cs-table" hidden={hand?.mode === "ofc"}>
         <div className="cs-rail">
           <div className="cs-felt" />
         </div>
@@ -1442,6 +1467,9 @@ export default function TablePage() {
           meSeat={view.meSeat}
           busy={busy}
           submit={submitOfc}
+          avatarBySeat={avatars.bySeat}
+          cardBack={view.cosmetics?.cardBack}
+          gameType={view.table.gameType || "OFC_PINEAPPLE"}
         />
       ) : null}
 
@@ -1470,17 +1498,7 @@ export default function TablePage() {
                 : "Hand in progress — you can sit when it ends."}
           </div>
         </div>
-      ) : hand?.mode === "ofc" ? (
-        <div className="cs-controls">
-          <div className="cs-wait">
-            {hand.result
-              ? "Hand complete"
-              : hand.toAct === view.meSeat
-              ? "Set your OFC rows above."
-              : "Waiting for the other OFC player to set…"}
-          </div>
-        </div>
-      ) : (
+      ) : hand?.mode === "ofc" ? null : (
         <div className={`cs-controls ${canSize ? "" : "idle"}`}>
           <div className="cs-presets">
             {(
