@@ -825,18 +825,27 @@ button.cs-empty-seat:not(:disabled) {
 /* Open-Face Chinese boards use the same room and felt as the other tables. */
 .cs-ofc-board {
   position: absolute;
-  inset: max(18dvh, calc(env(safe-area-inset-top) + 54px)) 0
-    max(14px, env(safe-area-inset-bottom));
+  inset: max(15dvh, calc(env(safe-area-inset-top) + 54px)) 0
+    calc(env(safe-area-inset-bottom) + 12px);
   z-index: 12;
   width: min(100% - 24px, 640px);
   margin-inline: auto;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.cs-ofc-play-area {
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 4px;
-  overflow: auto;
-  font-size: 12px;
 }
 
 .cs-ofc-opponents {
@@ -847,12 +856,12 @@ button.cs-empty-seat:not(:disabled) {
 }
 
 .cs-ofc-opponent {
-  --ofc-card-width: clamp(20px, min(7vw, 4.3dvh), 38px);
+  --ofc-card-width: clamp(20px, min(7vw, 3.9dvh), 38px);
   min-width: 0;
 }
 
 .cs-ofc-own {
-  --ofc-card-width: clamp(27px, min(10vw, 5.5dvh), 46px);
+  --ofc-card-width: clamp(27px, min(10vw, 4.6dvh), 46px);
 }
 
 .cs-ofc-seat-name {
@@ -944,7 +953,7 @@ button.cs-empty-seat:not(:disabled) {
   display: grid;
   justify-items: center;
   align-content: center;
-  flex: 1 0 auto;
+  flex: 1 0 48px;
   min-height: 48px;
   gap: 2px;
   color: #fff5d2;
@@ -990,7 +999,7 @@ button.cs-empty-seat:not(:disabled) {
 }
 
 .cs-ofc-actions button {
-  min-height: 34px;
+  min-height: 44px;
   flex: 1;
   padding: 3px;
   border: 1px solid var(--cs-line);

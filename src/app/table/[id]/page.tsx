@@ -297,14 +297,16 @@ function OfcBoard({ hand, meSeat, busy, submit, avatarBySeat, cardBack, gameType
 
   return (
     <section className="cs-ofc-board" aria-label="Open-Face Chinese Poker">
-      <div className="cs-ofc-opponents">{opponents.map((seat) => renderSeat(seat))}</div>
-      <div className="cs-ofc-brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={LOGO_NAME_SRC} alt="Shark Club" />
-        <span>{gameType === "OFC_JOKER_ULTIMATE" ? "Joker Ultimate" : "Pineapple OFC"}{hand.unit ? ` · ${hand.unit.toLocaleString()} per point` : ""}</span>
+      <div className="cs-ofc-play-area">
+        <div className="cs-ofc-opponents">{opponents.map((seat) => renderSeat(seat))}</div>
+        <div className="cs-ofc-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={LOGO_NAME_SRC} alt="Shark Club" />
+          <span>{gameType === "OFC_JOKER_ULTIMATE" ? "Joker Ultimate" : "Pineapple OFC"}{hand.unit ? ` · ${hand.unit.toLocaleString()} per point` : ""}</span>
+        </div>
+        {ownSeat && renderSeat(ownSeat, true)}
+        {!draft.length && ownSeat && <p className="cs-ofc-status">{hand.result ? "Hand complete" : "Waiting for the other players…"}</p>}
       </div>
-      {ownSeat && renderSeat(ownSeat, true)}
-      {!draft.length && ownSeat && <p className="cs-ofc-status">{hand.result ? "Hand complete" : "Waiting for the other players…"}</p>}
       {draft.length > 0 && (
         <div className="cs-ofc-tray">
           <p>{discardCount ? `Place ${required} and discard ${discardCount}.` : "Place all five cards."} Tap a card, then an empty slot.</p>
