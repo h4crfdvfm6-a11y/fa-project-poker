@@ -604,30 +604,6 @@ button.cs-empty-seat:not(:disabled) {
   background: #11151d;
 }
 
-/* OFC panel sits above the controls */
-.cs-ofc {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(100vw - 16px, 720px);
-  bottom: calc(max(8px, env(safe-area-inset-bottom)) + 118px);
-  z-index: 160;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(11, 16, 24, 0.95);
-  border: 1px solid var(--cs-line);
-  font-size: 12px;
-}
-.cs-ofc .cs-row {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin: 6px 0;
-}
-.cs-ofc .cs-card {
-  width: 40px;
-}
-
 /* ---------- menu sheet ---------- */
 .cs-sheet-backdrop {
   position: fixed;
@@ -823,9 +799,6 @@ button.cs-empty-seat:not(:disabled) {
     height: 38px;
     font-size: 10px;
   }
-  .cs-ofc {
-    bottom: 50px;
-  }
 }
 
 /* desktop: original landscape photo and table position */
@@ -849,43 +822,112 @@ button.cs-empty-seat:not(:disabled) {
   }
 }
 
+/* Open-Face Chinese boards use the same room and felt as the other tables. */
 .cs-ofc-board {
-  bottom: calc(env(safe-area-inset-bottom) + 54px);
-  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px);
-  overflow: auto;
-  width: min(calc(100vw - 16px), 720px);
-}
-
-.cs-ofc-tables {
+  position: absolute;
+  inset: max(18dvh, calc(env(safe-area-inset-top) + 54px)) 0
+    max(14px, env(safe-area-inset-bottom));
+  z-index: 12;
+  width: min(100% - 24px, 640px);
+  margin-inline: auto;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  overflow: auto;
+  font-size: 12px;
 }
 
-.cs-ofc-tables > div {
-  min-width: min(208px, 100%);
+.cs-ofc-opponents {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: clamp(8px, 3vw, 28px);
+}
+
+.cs-ofc-opponent {
+  --ofc-card-width: clamp(20px, min(7vw, 4.3dvh), 38px);
+  min-width: 0;
+}
+
+.cs-ofc-own {
+  --ofc-card-width: clamp(27px, min(10vw, 5.5dvh), 46px);
+}
+
+.cs-ofc-seat-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 4px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--cs-plate);
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-ofc-seat-name.active {
+  border-color: var(--cs-gold);
+}
+
+.cs-ofc-seat-name img {
+  width: 23px;
+  height: 23px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.cs-ofc-seat-name b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-ofc-seat-name small {
+  color: var(--cs-gold);
+}
+
+.cs-ofc-dealer {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  color: #17171b;
+  background: #f9ecd4;
+  font-weight: 800;
 }
 
 .cs-ofc-row {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .cs-ofc-row > span {
   width: 42px;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
 }
 
 .cs-ofc-board .cs-card,
 .cs-ofc-slot {
-  width: 28px;
+  width: var(--ofc-card-width, 34px);
   aspect-ratio: 5 / 7;
+  flex: none;
 }
 
 .cs-ofc-slot {
-  border: 1px dashed var(--cs-line);
-  border-radius: 4px;
+  display: block;
+  border: 1px dashed rgba(255, 255, 255, 0.45);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .cs-ofc-board button {
@@ -898,20 +940,71 @@ button.cs-empty-seat:not(:disabled) {
   outline-offset: 1px;
 }
 
-.cs-ofc-board small {
-  display: block;
+.cs-ofc-brand {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  flex: 1 0 auto;
+  min-height: 48px;
+  gap: 2px;
+  color: #fff5d2;
+  text-shadow: 0 1px 4px #000;
+}
+
+.cs-ofc-brand img {
+  width: clamp(95px, 24vw, 155px);
+  max-height: 7dvh;
+  object-fit: contain;
+}
+
+.cs-ofc-status,
+.cs-ofc-result {
+  margin: 2px 0;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--cs-plate);
+}
+
+.cs-ofc-tray {
+  width: min(100%, 460px);
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--cs-plate);
+}
+
+.cs-ofc-tray p {
+  margin: 0 0 4px;
+}
+
+.cs-ofc-tray .cs-row {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 3px;
+  margin-bottom: 4px;
 }
 
 .cs-ofc-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cs-ofc-actions button {
-  padding: 8px 12px;
+  min-height: 34px;
+  flex: 1;
+  padding: 3px;
   border: 1px solid var(--cs-line);
   border-radius: 6px;
+}
+
+.cs-ofc-actions button:disabled {
+  opacity: 0.45;
+}
+
+.cs-ofc-actions button:last-child:enabled {
+  color: #15120a;
+  background: var(--cs-gold);
+  font-weight: 800;
 }
 
 /* Keep the iOS status bar on a solid background with edge-to-edge viewport mode. */
@@ -931,7 +1024,8 @@ button.cs-empty-seat:not(:disabled) {
   font-size: 1rem;
 }
 
-.cs-ofc-board .cs-row > button {
+.cs-ofc-tray .cs-row > button {
+  flex: none;
   min-width: 40px;
   min-height: 44px;
   display: grid;
