@@ -88,12 +88,14 @@ export function RoomPicker() {
           type="button"
           aria-label={r.label}
           title={r.label}
+          aria-pressed={room === r.id}
           onClick={() => choose(r.id)}
           className="shrink-0 overflow-hidden rounded-md p-0"
           style={{
             width: 32,
             height: 56,
-            backgroundImage: `url("${sized(r.src, 128)}")`,
+            backgroundColor: "color" in r ? r.color : undefined,
+            backgroundImage: "src" in r ? `url("${sized(r.src, 128)}")` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center top",
             border: room === r.id ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
