@@ -36,6 +36,9 @@ export async function POST(request: Request) {
     straddleEnabled?: boolean;
     mississippiEnabled?: boolean;
   };
+  // Free play: public (non-private) tables never take rake, and BBJP is on.
+  // Rake only applies to admin-hosted private tables behind the club code.
+  const isPrivate = Boolean(body.isPrivate);
   try {
     const table = await createTable({
       title: body.title || "",
@@ -45,10 +48,10 @@ export async function POST(request: Request) {
       seats: Number(body.seats ?? 6),
       buyinMin: Number(body.buyinMin ?? 2000),
       buyinMax: Number(body.buyinMax ?? 10000),
-      rakePercent: Number(body.rakePercent ?? 5),
-      rakeCapBb: Number(body.rakeCapBb ?? 3),
-      bbjpEnabled: Boolean(body.bbjpEnabled),
-      isPrivate: Boolean(body.isPrivate),
+      rakePercent: isPrivate ? Number(body.rakePercent ?? 5) : 0,
+      rakeCapBb: isPrivate ? Number(body.rakeCapBb ?? 3) : 0,
+      bbjpEnabled: isPrivate ? Boolean(body.bbjpEnabled) : true,
+      isPrivate,
       squidEnabled: Boolean(body.squidEnabled),
       squidTarget: Number(body.squidTarget ?? 3),
       cucuruchoEnabled: Boolean(body.cucuruchoEnabled),
