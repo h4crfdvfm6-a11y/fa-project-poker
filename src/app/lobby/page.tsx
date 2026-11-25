@@ -49,6 +49,8 @@ export default function LobbyPage() {
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
   const [game, setGame] = useState("ALL");
+  // host sign-in is hidden until the host opens it from the link at the bottom
+  const [hostOpen, setHostOpen] = useState(false);
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
@@ -142,7 +144,7 @@ export default function LobbyPage() {
             {money(data.me.chip_balance)}
           </div>
         </div>
-      ) : (
+      ) : hostOpen ? (
         <form onSubmit={join} className="panel mb-5 grid gap-3 p-4">
           <div>
             <label className="label">Your name</label>
@@ -169,7 +171,7 @@ export default function LobbyPage() {
             Join club
           </button>
         </form>
-      )}
+      ) : null}
 
       <LobbyTournaments
         tournaments={data.tournaments ?? []}
@@ -242,6 +244,18 @@ export default function LobbyPage() {
           ) : null}
         </div>
       </section>
+
+      {data.me ? null : (
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            className="text-xs text-[var(--muted)] opacity-60 underline"
+            onClick={() => setHostOpen((v) => !v)}
+          >
+            {hostOpen ? "Hide host sign-in" : "Host sign-in"}
+          </button>
+        </div>
+      )}
 
     </main>
   );
