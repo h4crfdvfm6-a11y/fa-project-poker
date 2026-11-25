@@ -136,7 +136,7 @@ export default function LobbyPage() {
             className="btn btn-ghost shrink-0 !py-2 !text-xs"
             onClick={() => setClubOpen((v) => !v)}
           >
-            {clubOpen ? "Close" : "Club poker"}
+            {clubOpen ? "Close" : "Poker club"}
           </button>
         )}
       </div>
