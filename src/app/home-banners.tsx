@@ -203,9 +203,6 @@ export function HomeScreen() {
           <Link href="/lobby" className="btn btn-gold">
             Enter club lobby
           </Link>
-          <Link href="/admin" className="btn btn-ghost">
-            Club admin
-          </Link>
         </div>
       </div>
     </main>
