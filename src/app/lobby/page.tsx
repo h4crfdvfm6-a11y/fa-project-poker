@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
 import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GAME_TYPES, gameTypeLabel, isGameType } from "@/lib/poker/variants";
 
 type LobbyData = {
@@ -45,12 +45,7 @@ function money(v: string | number) {
 
 export default function LobbyPage() {
   const [data, setData] = useState<LobbyData | null>(null);
-  const [error, setError] = useState("");
-  const [name, setName] = useState("");
-  const [invite, setInvite] = useState("");
   const [game, setGame] = useState("ALL");
-  // host sign-in is hidden until the host opens it from the link at the bottom
-  const [hostOpen, setHostOpen] = useState(false);
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
@@ -78,22 +73,6 @@ export default function LobbyPage() {
     const t = setInterval(() => void load(), 5000);
     return () => clearInterval(t);
   }, [waitingForTournament, load]);
-
-  async function join(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    const res = await fetch("/api/join", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ inviteCode: invite, displayName: name }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Could not join");
-      return;
-    }
-    await load();
-  }
 
   if (!data) {
     return (
@@ -144,33 +123,6 @@ export default function LobbyPage() {
             {money(data.me.chip_balance)}
           </div>
         </div>
-      ) : hostOpen ? (
-        <form onSubmit={join} className="panel mb-5 grid gap-3 p-4">
-          <div>
-            <label className="label">Your name</label>
-            <input
-              className="field"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Player name"
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Club invite</label>
-            <input
-              className="field"
-              value={invite}
-              onChange={(e) => setInvite(e.target.value)}
-              placeholder="Club invite code"
-              required
-            />
-          </div>
-          {error ? <p className="text-sm text-[#ffb4b6]">{error}</p> : null}
-          <button className="btn btn-gold" type="submit">
-            Join club
-          </button>
-        </form>
       ) : null}
 
       <LobbyTournaments
@@ -247,13 +199,9 @@ export default function LobbyPage() {
 
       {data.me ? null : (
         <div className="mt-8 text-center">
-          <button
-            type="button"
-            className="text-xs text-[var(--muted)] opacity-60 underline"
-            onClick={() => setHostOpen((v) => !v)}
-          >
-            {hostOpen ? "Hide host sign-in" : "Host sign-in"}
-          </button>
+          <Link href="/admin" className="text-xs text-[var(--muted)] opacity-60 underline">
+            Host sign-in
+          </Link>
         </div>
       )}
 
