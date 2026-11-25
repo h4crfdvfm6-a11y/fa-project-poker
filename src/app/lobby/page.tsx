@@ -48,7 +48,6 @@ export default function LobbyPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
-  const [password, setPassword] = useState("");
   const [game, setGame] = useState("ALL");
   const [clubOpen, setClubOpen] = useState(false);
   const load = useCallback(async () => {
@@ -82,23 +81,6 @@ export default function LobbyPage() {
   async function join(e: FormEvent) {
     e.preventDefault();
     setError("");
-
-    // a password typed here is the admin PIN: check it, and go to admin if right
-    if (password.trim()) {
-      const adminRes = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ pin: password }),
-      });
-      if (adminRes.ok) {
-        window.location.assign("/admin");
-        return;
-      }
-      const adminJson = await adminRes.json().catch(() => ({}));
-      setError(adminJson.error || "Wrong password");
-      return;
-    }
-
     const res = await fetch("/api/join", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -109,7 +91,10 @@ export default function LobbyPage() {
       setError(json.error || "Could not join");
       return;
     }
-    setPassword("");
+    if (json.admin) {
+      window.location.assign("/admin");
+      return;
+    }
     await load();
   }
 
@@ -190,22 +175,12 @@ export default function LobbyPage() {
               value={invite}
               onChange={(e) => setInvite(e.target.value)}
               placeholder="Club invite code"
-            />
-          </div>
-          <div>
-            <label className="label">Password</label>
-            <input
-              className="field"
-              type="password"
-              autoComplete="off"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Leave empty to join"
+              required
             />
           </div>
           {error ? <p className="text-sm text-[#ffb4b6]">{error}</p> : null}
           <button className="btn btn-gold" type="submit">
-            Sign in
+            Join club
           </button>
         </form>
       ) : null}
