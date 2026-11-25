@@ -5,7 +5,7 @@ import {
   listPublicTables,
   listTournaments,
 } from "@/lib/club";
-import { getPlayerId } from "@/lib/session";
+import { getPlayerId, isAdmin } from "@/lib/session";
 import { sql } from "@/lib/db";
 import { after } from "next/server";
 import { leaveAllTablesQuick } from "@/lib/seat-presence";
@@ -18,6 +18,7 @@ export async function GET() {
   );
   const bbjp = await getBbjp();
   const playerId = await getPlayerId();
+  const admin = await isAdmin();
   let me = null;
   let myTournamentIds: string[] = [];
   let leaving = 0;
@@ -54,5 +55,6 @@ export async function GET() {
     me,
     myTournamentIds,
     leaving,
+    isAdmin: admin,
   });
 }
