@@ -579,6 +579,10 @@ export default function AdminPage() {
                 />
               </div>
             </div>
+            <p className="text-xs text-[var(--muted)]">
+              Rake only applies to private tables. Public tables are free play
+              with no rake.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Min buy-in</label>
@@ -629,6 +633,16 @@ export default function AdminPage() {
                 BBJP on this table
               </label>
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={tableForm.isPrivate}
+                onChange={(e) =>
+                  setTableForm((s) => ({ ...s, isPrivate: e.target.checked }))
+                }
+              />
+              Private table (admin-hosted, rake applies)
+            </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -652,7 +666,7 @@ export default function AdminPage() {
               </label>
             </div>
             <button className="btn btn-gold" type="submit">
-              Create table with rake
+              Create table
             </button>
           </form>
 
