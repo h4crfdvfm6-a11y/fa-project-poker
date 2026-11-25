@@ -110,11 +110,6 @@ export default function LobbyPage() {
           <BrandMark />
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin" className="btn btn-ghost !py-2 !text-sm">
-            Admin
-          </Link>
-        </div>
       </div>
 
       <div className="bbjp-panel mb-4 flex items-center justify-between px-4 py-3">
@@ -207,7 +202,7 @@ export default function LobbyPage() {
         <div className="grid gap-3" id="open-tables" role="tabpanel" aria-labelledby={`game-${game}`}>
           {data.tables.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">
-              No open tables yet. Admin can open one from the panel.
+              No open tables yet. Check back soon.
             </p>
           ) : (
             data.tables.filter((t) => game === "ALL" || (t.game_type || "NLH") === game).map((t) => (
