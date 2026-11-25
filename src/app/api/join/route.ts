@@ -6,7 +6,12 @@ import {
   inviteGateState,
   recordInviteGuessFailure,
 } from "@/lib/invite-limit";
-import { setPlayerSession } from "@/lib/session";
+import {
+  adminPinConfigured,
+  adminPinOk,
+  setAdminSession,
+  setPlayerSession,
+} from "@/lib/session";
 
 export async function POST(request: Request) {
   const csrf = assertSameOrigin(request);
@@ -39,6 +44,17 @@ export async function POST(request: Request) {
       },
     );
   }
+
+  // the admin PIN typed in the invite box opens admin (players never know it)
+  if (adminPinConfigured() && adminPinOk(body.inviteCode)) {
+    await clearInviteGuessFailures(request, gate.identity);
+    await setAdminSession();
+    return Response.json(
+      { admin: true },
+      { headers: withThrottleCookie(undefined, gate.setCookie) },
+    );
+  }
+
   try {
     const member = await joinByInvite(body.inviteCode, body.displayName);
     await clearInviteGuessFailures(request, gate.identity);
