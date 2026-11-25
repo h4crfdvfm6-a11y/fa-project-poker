@@ -37,6 +37,7 @@ type LobbyData = {
     minimum_hand?: string;
   };
   me: { id: string; display_name: string; chip_balance: string | number } | null;
+  isAdmin?: boolean;
 };
 
 function money(v: string | number) {
@@ -98,6 +99,11 @@ export default function LobbyPage() {
     await load();
   }
 
+  async function logout() {
+    await fetch("/api/admin/logout", { method: "POST" });
+    await load();
+  }
+
   if (!data) {
     return (
       <main className="mx-auto max-w-lg px-5 py-10 text-[var(--muted)]">
@@ -115,15 +121,26 @@ export default function LobbyPage() {
           <BrandMark />
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
-        {data.me ? null : (
-          <button
-            type="button"
-            className="btn btn-ghost shrink-0 !py-2 !text-xs"
-            onClick={() => setClubOpen((v) => !v)}
-          >
-            {clubOpen ? "Close" : "Poker club"}
-          </button>
-        )}
+        <div className="flex shrink-0 gap-2">
+          {data.me ? null : (
+            <button
+              type="button"
+              className="btn btn-ghost !py-2 !text-xs"
+              onClick={() => setClubOpen((v) => !v)}
+            >
+              {clubOpen ? "Close" : "Poker club"}
+            </button>
+          )}
+          {data.isAdmin ? (
+            <button
+              type="button"
+              className="btn btn-ghost !py-2 !text-xs"
+              onClick={() => void logout()}
+            >
+              Log out
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="bbjp-panel mb-4 flex items-center justify-between px-4 py-3">
