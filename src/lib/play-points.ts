@@ -13,14 +13,20 @@ export type TierKey = (typeof TIERS)[number]["key"];
 /** Points for each hand dealt to a real player. */
 export const POINTS_PER_HAND = 1;
 
-/** Copper coins paid once when a player first reaches a tier. */
-export const TIER_UP_REWARD_COPPER: Record<TierKey, number> = {
-  copper: 0,
-  silver: 200,
-  gold: 500,
+/**
+ * Paid once when a player first reaches a tier: chips plus one free
+ * buy-in ticket for a tournament of that tier. Copper is for the shop only.
+ */
+export const TIER_UP_REWARD: Record<
+  TierKey,
+  { chips: number; freeTickets: number }
+> = {
+  copper: { chips: 0, freeTickets: 0 },
+  silver: { chips: 10000, freeTickets: 1 },
+  gold: { chips: 50000, freeTickets: 1 },
 };
 
-/** Cash-game stakes and buy-in ranges per tier. Blinds in chips. */
+/** Cash-game stakes and buy-in ranges per tier. Blinds and buy-ins in chips. */
 export const CASH_STAKES: Record<
   TierKey,
   { sb: number; bb: number; buyinMin: number; buyinMax: number }
@@ -30,14 +36,18 @@ export const CASH_STAKES: Record<
   gold: { sb: 2500, bb: 5000, buyinMin: 100000, buyinMax: 500000 },
 };
 
-/** Tournament entry: Copper is open to all and paid with free chips. */
-export const TOURNAMENT_ENTRY: Record<
+/**
+ * Tournament starting stacks at 100 big blinds, per tier.
+ * Copper is open to everyone and entered with free chips;
+ * Silver and Gold need the matching tier.
+ */
+export const TOURNAMENT_STAGE: Record<
   TierKey,
-  { entryChips: number; requiresTier: boolean }
+  { sb: number; bb: number; startingStack: number; requiresTier: boolean }
 > = {
-  copper: { entryChips: 0, requiresTier: false },
-  silver: { entryChips: 0, requiresTier: true },
-  gold: { entryChips: 0, requiresTier: true },
+  copper: { sb: 100, bb: 200, startingStack: 20000, requiresTier: false },
+  silver: { sb: 500, bb: 1000, startingStack: 100000, requiresTier: true },
+  gold: { sb: 2500, bb: 5000, startingStack: 500000, requiresTier: true },
 };
 
 export function tierForPoints(points: number): TierKey {
