@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { POINTS_PER_HAND, awardPlayPoints } from "./play-points";
 
 /**
  * Free Time Bank cards, GG style: each card adds 10 seconds and is used
@@ -35,9 +36,13 @@ export async function useTimeBankCard(memberId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-/** After a hand is dealt: count it for everyone dealt in (1 card per 25 hands). */
+/**
+ * After a hand is dealt: count it for everyone dealt in (1 card per 25 hands),
+ * and give each of them play points for the hand.
+ */
 export async function countHandPlayed(memberIds: string[]) {
-  for (const id of new Set(memberIds)) {
+  const unique = [...new Set(memberIds)];
+  for (const id of unique) {
     await sql(
       `insert into member_time_bank (member_id, cards, hands_since)
        values ($1, $2, 1)
@@ -53,4 +58,5 @@ export async function countHandPlayed(memberIds: string[]) {
       [id, TIME_BANK_START, TIME_BANK_HANDS_PER_CARD, TIME_BANK_MAX],
     );
   }
+  await awardPlayPoints(unique, POINTS_PER_HAND);
 }
