@@ -34,3 +34,11 @@
 .panel {
   border-color: rgba(228, 150, 96, 0.5);
 }
+
+/* Splash picture: show the whole door, centred at the top, not cropped */
+main.home-screen .home-picture.clean {
+  background-color: #0b0b0d;
+  background-size: contain;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
