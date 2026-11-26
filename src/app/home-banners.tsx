@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 /** Full-screen FA Poker hero: the cropped door with the copper medallion centred on the glass. */
-const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%207.41.14%20PM.jpeg";
+const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%208.14.40%20PM.jpeg";
 
 const LABEL: React.CSSProperties = {
   display: "block",
