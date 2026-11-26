@@ -5,17 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./brand-mark";
 import "./home.css";
 
-/** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
-const HOME_PICTURES = [
-  // smaller shark, built into the picture (owner uploads it)
-  "/banners/shark-club-home-small.jpg",
-  "/banners/home-background.gif",
-  "/banners/shark-club-home.webp",
-  "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
-];
+/** Full-screen FA Poker picture: the copper medallion on the login door. */
+const HOME_PICTURES = ["/banners/Poker%20medallion%20on%20a%20login%20door.png"];
 
-/** Moving-water version of the picture; the smaller-shark one first when uploaded. */
-const HOME_VIDEOS = ["/banners/home-water-small.mp4", "/banners/home-water.mp4"];
+/** No moving-water video on the FA Poker home screen. */
+const HOME_VIDEOS: string[] = [];
 
 /**
  * Reward tiles, best first: see-through animated WebP (no background at all,
@@ -44,7 +38,7 @@ const BANNERS = [
   },
 ];
 
-/** Reward GIFs under the shark — switched off at the user's request. */
+/** Reward GIFs under the picture — switched off at the user's request. */
 const SHOW_REWARDS = false;
 
 /** How long each reward stays on screen before the next one. */
@@ -153,17 +147,20 @@ export function HomeScreen() {
     void firstThatExists(HOME_PICTURES).then((src) => {
       if (!cancelled) setPicture(src ?? false);
     });
-    void firstThatExists(HOME_VIDEOS).then((src) => {
-      if (!cancelled) setVideo(src);
-    });
-    if (SHOW_REWARDS) Promise.all(
-      BANNERS.map(async (b) => {
-        const src = await firstThatExists(b.files);
-        return src ? { alt: b.alt, src } : null;
-      }),
-    ).then((list) => {
-      if (!cancelled) setSlides(list.filter((x): x is Slide => Boolean(x)));
-    });
+    if (HOME_VIDEOS.length) {
+      void firstThatExists(HOME_VIDEOS).then((src) => {
+        if (!cancelled) setVideo(src);
+      });
+    }
+    if (SHOW_REWARDS)
+      Promise.all(
+        BANNERS.map(async (b) => {
+          const src = await firstThatExists(b.files);
+          return src ? { alt: b.alt, src } : null;
+        }),
+      ).then((list) => {
+        if (!cancelled) setSlides(list.filter((x): x is Slide => Boolean(x)));
+      });
     return () => {
       cancelled = true;
     };
@@ -171,10 +168,10 @@ export function HomeScreen() {
 
   return (
     <main className="home-screen">
-      {picture && video && !picture.endsWith(".gif") ? (
+      {picture && video ? (
         <video
           ref={startOnIphone}
-          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
+          className="home-picture clean"
           src={video}
           poster={picture}
           autoPlay
@@ -185,7 +182,7 @@ export function HomeScreen() {
         />
       ) : picture ? (
         <div
-          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
+          className="home-picture clean"
           style={{ backgroundImage: `url("${picture}")` }}
         />
       ) : picture === false ? (
@@ -194,14 +191,11 @@ export function HomeScreen() {
         </div>
       ) : null}
 
-      {/* the club name: still, centred under the shark (the -small files already have it) */}
-      {picture && !picture.includes("-small") ? <div className="home-name">SHARK CLUB</div> : null}
-
       <div className="home-bottom">
         {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
         <div className="home-buttons">
           <Link href="/lobby" className="btn btn-gold">
-            Enter club lobby
+            Enter the lobby
           </Link>
         </div>
       </div>
