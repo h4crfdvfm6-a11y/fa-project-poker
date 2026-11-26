@@ -18,7 +18,7 @@ const LABEL: React.CSSProperties = {
 const FIELD: React.CSSProperties = {
   display: "block",
   width: "100%",
-  height: 44,
+  height: 46,
   boxSizing: "border-box",
   borderRadius: 10,
   border: "1px solid rgba(201, 164, 92, 0.75)",
@@ -94,7 +94,7 @@ export function HomeScreen() {
         background: "#0b0b0d",
       }}
     >
-      {/* full picture width, so the whole glass frame and the handle show; anchored to the top */}
+      {/* full picture width so the whole glass frame and the handle show; sits a little below the top edge */}
       <div
         aria-hidden
         style={{
@@ -102,23 +102,23 @@ export function HomeScreen() {
           inset: 0,
           backgroundImage: `url("${PICTURE}")`,
           backgroundSize: "100% auto",
-          backgroundPosition: "top center",
+          backgroundPosition: "center 36px",
           backgroundRepeat: "no-repeat",
         }}
       />
 
-      {/* the login sits in the empty dark panel below the glass, clear of the handle */}
+      {/* the login fills the empty dark panel below the glass, down to the bottom of the screen */}
       <form
         onSubmit={submit}
         style={{
           position: "absolute",
           left: "14%",
           right: "4%",
-          top: "48%",
+          top: "50%",
           bottom: "3%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
+          justifyContent: "space-evenly",
           gap: 8,
         }}
       >
@@ -153,7 +153,7 @@ export function HomeScreen() {
           <p style={{ color: "#ff8b9b", margin: 0, fontSize: 14, textAlign: "center" }}>{error}</p>
         ) : null}
 
-        <button type="submit" disabled={busy} style={{ ...LOG_IN, marginTop: 4, opacity: busy ? 0.7 : 1 }}>
+        <button type="submit" disabled={busy} style={{ ...LOG_IN, opacity: busy ? 0.7 : 1 }}>
           {busy ? "Signing in…" : "Log in"}
         </button>
         <Link href="/signup" style={CREATE}>
