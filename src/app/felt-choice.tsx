@@ -6,6 +6,7 @@ import { FELTS, FELT_KEY, ROOM_KEY } from "@/lib/felt";
 import { sized } from "@/lib/looks";
 import "./table-looks.css";
 import "./table-owned-rooms.css";
+import "./table-felt-logo.css";
 
 type OwnedBackground = { id: string; title: string; asset_key: string };
 
