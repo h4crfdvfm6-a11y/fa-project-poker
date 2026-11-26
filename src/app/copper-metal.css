@@ -34,12 +34,3 @@
 .panel {
   border-color: rgba(228, 150, 96, 0.5);
 }
-
-/* Copper labels read as metal, not as plain brown text */
-.label,
-.brand {
-  background: linear-gradient(180deg, #fde3c8 0%, #e39a62 50%, #b5672f 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
