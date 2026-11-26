@@ -193,9 +193,12 @@ export function HomeScreen() {
 
       <div className="home-bottom">
         {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
-        <div className="home-buttons">
-          <Link href="/lobby" className="btn btn-gold">
-            Enter the lobby
+        <div className="home-buttons" style={{ display: "grid", gap: 10 }}>
+          <Link href="/login" className="btn btn-gold">
+            Log in
+          </Link>
+          <Link href="/signup" className="btn btn-ghost">
+            Create account
           </Link>
         </div>
       </div>
