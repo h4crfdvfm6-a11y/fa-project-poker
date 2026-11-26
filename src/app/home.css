@@ -10,10 +10,10 @@
   overflow: hidden;
 }
 
-/* Home page sits on the picture's own dark blue — no royal-blue page wash at the edges */
+/* Home page sits on the picture's own dark background — no page wash at the edges */
 html:has(.home-screen),
 html:has(.home-screen) body {
-  background: #08143a;
+  background: #0b0b0d;
 }
 html:has(.home-screen) body::before,
 html:has(.home-screen) body::after {
