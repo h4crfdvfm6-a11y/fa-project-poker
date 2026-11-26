@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-/** Full-screen FA Poker picture: the copper medallion on the login door. */
-const PICTURE = "/banners/Poker%20medallion%20on%20a%20login%20door.png";
+/** Full-screen FA Poker hero: the clean black door with copper accents. */
+const PICTURE = "/banners/Plain%20black%20door%20with%20copper%20accents.png";
 
 const LABEL: React.CSSProperties = {
   display: "block",
