@@ -33,7 +33,7 @@ export default function SignupPage() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/banners/Copper%20Poker%20Art%20Deco%20Medallion.png"
-        alt="Copper Poker"
+        alt="FA Poker"
         style={{ display: "block", width: 200, height: "auto", margin: "0 auto 20px" }}
       />
       <form className="panel" onSubmit={submit} style={{ padding: 20 }}>
