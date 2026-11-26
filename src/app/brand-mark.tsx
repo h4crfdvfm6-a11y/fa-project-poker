@@ -13,13 +13,19 @@ export function BrandMark({
   label?: string;
   size?: number;
 }) {
+  const dimension = Math.round(size * 1.6);
   return (
     <Link href={href} className="flex items-center" aria-label={label}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={LOGO_NAME_SRC}
         alt={label}
-        style={{ height: Math.round(size * 1.6), width: "auto" }}
+        style={{
+          height: dimension,
+          width: dimension,
+          objectFit: "cover",
+          borderRadius: "50%",
+        }}
         className="brand-logo"
       />
     </Link>
