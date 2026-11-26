@@ -1,38 +1,73 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AVATARS, DECKS, DECK_KEY, FACES, FACE_KEY, sized } from "@/lib/looks";
+import { DECKS, DECK_KEY, FACES, FACE_KEY, sized } from "@/lib/looks";
 
-/** Table menu: choose your avatar (everyone sees it). */
+type OwnedAvatar = { id: string; title: string; asset_key: string };
+
+/** Table menu: choose your avatar from the ones you own (everyone sees it). */
 export function AvatarPicker({
   current,
   onPick,
   disabled,
 }: {
   current: string | null;
-  onPick: (id: string) => void;
+  onPick: (path: string) => void;
   disabled?: boolean;
 }) {
+  const [owned, setOwned] = useState<OwnedAvatar[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/shop", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { catalog?: Array<OwnedAvatar & { kind: string }>; me?: { owned?: string[] } | null }) => {
+        if (!alive) return;
+        const mine = new Set(json.me?.owned ?? []);
+        setOwned(
+          (json.catalog ?? []).filter((i) => i.kind === "avatar" && mine.has(i.id)),
+        );
+      })
+      .catch(() => {
+        if (alive) setOwned([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (owned === null) {
+    return <p className="text-sm text-[var(--muted)]">Loading your avatars…</p>;
+  }
+  if (owned.length === 0) {
+    return (
+      <p className="text-sm text-[var(--muted)]">
+        You don&apos;t own any avatars yet. Buy them in the{" "}
+        <a href="/shop" className="text-[var(--gold)] underline">Shop</a>.
+      </p>
+    );
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
-      {AVATARS.map((a) => (
+      {owned.map((a) => (
         <button
           key={a.id}
           type="button"
-          aria-label={a.label}
-          title={a.label}
+          aria-label={a.title}
+          title={a.title}
           disabled={disabled}
-          onClick={() => onPick(a.id)}
+          onClick={() => onPick(a.asset_key)}
           className="shrink-0 overflow-hidden rounded-full p-0"
           style={{
             width: 40,
             height: 40,
-            border: current === a.id ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
-            boxShadow: current === a.id ? "0 0 8px rgba(255, 211, 77, 0.7)" : "none",
+            border: current === a.asset_key ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
+            boxShadow: current === a.asset_key ? "0 0 8px rgba(255, 211, 77, 0.7)" : "none",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={sized(a.src, 128)} alt="" className="h-full w-full object-cover" />
+          <img src={sized(a.asset_key, 128)} alt="" className="h-full w-full object-cover" />
         </button>
       ))}
     </div>
