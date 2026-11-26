@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-/** Full-screen FA Poker hero: the clean black door with copper accents. */
-const PICTURE = "/banners/Plain%20black%20door%20with%20copper%20accents.png";
+/** Full-screen FA Poker hero: the copper medallion on the black door. */
+const PICTURE = "/banners/Copper%20poker%20medallion%20on%20black%20door.png";
 
 const LABEL: React.CSSProperties = {
   display: "block",
@@ -18,7 +18,7 @@ const LABEL: React.CSSProperties = {
 const FIELD: React.CSSProperties = {
   display: "block",
   width: "100%",
-  height: 48,
+  height: 44,
   boxSizing: "border-box",
   borderRadius: 10,
   border: "1px solid rgba(201, 164, 92, 0.75)",
@@ -32,11 +32,11 @@ const FIELD: React.CSSProperties = {
 const BUTTON: React.CSSProperties = {
   display: "flex",
   width: "100%",
-  height: 54,
+  height: 50,
   alignItems: "center",
   justifyContent: "center",
   borderRadius: 10,
-  fontSize: 20,
+  fontSize: 19,
   fontWeight: 800,
   letterSpacing: "0.02em",
   textDecoration: "none",
@@ -107,19 +107,19 @@ export function HomeScreen() {
         }}
       />
 
-      {/* the login sits in the dark panel under the medallion */}
+      {/* the login sits in the empty dark panel at the bottom of the door */}
       <form
         onSubmit={submit}
         style={{
           position: "absolute",
-          left: "8%",
-          right: "8%",
-          top: "56%",
-          bottom: "4%",
+          left: "10%",
+          right: "10%",
+          top: "61%",
+          bottom: "2%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "flex-end",
-          gap: 10,
+          justifyContent: "center",
+          gap: 8,
         }}
       >
         <div>
@@ -159,7 +159,7 @@ export function HomeScreen() {
         <Link href="/signup" style={CREATE}>
           Create account
         </Link>
-        <p style={{ textAlign: "center", margin: "2px 0 0" }}>
+        <p style={{ textAlign: "center", margin: "0" }}>
           <Link href="/forgot" style={{ color: "#d9d4cb", fontSize: 14 }}>
             Forgot password?
           </Link>
