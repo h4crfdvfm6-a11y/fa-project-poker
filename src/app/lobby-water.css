@@ -1,6 +1,6 @@
 /* Lobby: moving deep water (see lobby-water.tsx) */
 html:has(.lobby-water) {
-  background: #08143a;
+  background: #0b0b0d;
 }
 /* body must stay transparent or it paints over the water layer */
 html:has(.lobby-water) body {
@@ -17,14 +17,14 @@ html:has(.lobby-water) body::after {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: #08143a;
+  background: #0b0b0d;
 }
 
-/* The blue-water GIF fills the whole phone screen */
+/* The background GIF fills the whole phone screen */
 .lw-hero {
   position: absolute;
   inset: 0;
-  background: #08143a center / cover no-repeat;
+  background: #0b0b0d center / cover no-repeat;
 }
 
 /* keep the middle darker so the table list is easy to read */
@@ -32,7 +32,7 @@ html:has(.lobby-water) body::after {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(4, 10, 32, 0.15), rgba(4, 10, 32, 0.3) 30%, rgba(4, 10, 32, 0.3) 80%, rgba(4, 10, 32, 0.4));
+    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3) 30%, rgba(0, 0, 0, 0.3) 80%, rgba(0, 0, 0, 0.4));
 }
 
 .lw-spark {
@@ -57,9 +57,9 @@ html:has(.lobby-water) body::after {
   }
 }
 
-/* Table boxes: the front page's dark blue (#08143a), see-through so the water shows */
+/* Table boxes: black, see-through so the background shows */
 html:has(.lobby-water) article.panel {
-  background: rgba(8, 20, 58, 0.5);
+  background: rgba(20, 20, 24, 0.5);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   border-color: rgba(255, 255, 255, 0.14);
