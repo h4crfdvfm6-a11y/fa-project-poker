@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 /** Full-screen FA Poker hero: the cropped door with the copper medallion centred on the glass. */
-const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%208.14.40%20PM.jpeg";
+const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%208.38.41%20PM.jpeg";
 
 const LABEL: React.CSSProperties = {
   display: "block",
@@ -107,7 +107,7 @@ export function HomeScreen() {
         }}
       />
 
-      {/* the login sits in the empty dark panel below the glass, clear of the glass frame */}
+      {/* the sign-in sits centred in the empty dark panel at the bottom of the door, evenly spaced */}
       <form
         onSubmit={submit}
         style={{
