@@ -48,6 +48,7 @@ export default function ShopPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<Item | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/shop", { cache: "no-store" });
@@ -59,6 +60,16 @@ export default function ShopPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Escape closes the full-screen preview
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview]);
 
   async function post(body: unknown, fallback: string) {
     setBusy(true);
@@ -126,7 +137,7 @@ export default function ShopPage() {
       )}
 
       <p className="mb-4 text-sm text-[var(--muted)]">
-        Tap an avatar you own to use it. Backgrounds are picked at the table, in the ☰ menu.
+        Tap a picture to see it full screen. Backgrounds are picked at the table, in the ☰ menu.
       </p>
 
       {error ? <p className="mb-3 text-sm text-[#ffb4b6]">{error}</p> : null}
@@ -160,22 +171,15 @@ export default function ShopPage() {
                 <div>
                   <h3 className="mb-2 text-sm font-semibold">Avatars</h3>
                   <div className="grid grid-cols-4 gap-2">
-                    {avatars.map((item) => {
-                      const isOwned = owned.has(item.id);
-                      const equipped = me?.equipped_avatar === item.asset_key;
-                      return (
-                        <Tile
-                          key={item.id}
-                          item={item}
-                          isOwned={isOwned}
-                          selected={equipped}
-                          disabled={busy || !me}
-                          onClick={() =>
-                            isOwned ? equip("avatar", item.asset_key) : buy(item.id)
-                          }
-                        />
-                      );
-                    })}
+                    {avatars.map((item) => (
+                      <Tile
+                        key={item.id}
+                        item={item}
+                        isOwned={owned.has(item.id)}
+                        selected={me?.equipped_avatar === item.asset_key}
+                        onOpen={() => setPreview(item)}
+                      />
+                    ))}
                   </div>
                 </div>
               ) : null}
@@ -184,21 +188,15 @@ export default function ShopPage() {
                 <div>
                   <h3 className="mb-2 text-sm font-semibold">Backgrounds</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {backgrounds.map((item) => {
-                      const isOwned = owned.has(item.id);
-                      return (
-                        <Tile
-                          key={item.id}
-                          item={item}
-                          isOwned={isOwned}
-                          selected={false}
-                          disabled={busy || !me}
-                          onClick={() => {
-                            if (!isOwned) void buy(item.id);
-                          }}
-                        />
-                      );
-                    })}
+                    {backgrounds.map((item) => (
+                      <Tile
+                        key={item.id}
+                        item={item}
+                        isOwned={owned.has(item.id)}
+                        selected={false}
+                        onOpen={() => setPreview(item)}
+                      />
+                    ))}
                   </div>
                 </div>
               ) : null}
@@ -282,6 +280,24 @@ export default function ShopPage() {
           </details>
         );
       })}
+
+      {preview ? (
+        <Preview
+          item={preview}
+          isOwned={owned.has(preview.id)}
+          isEquipped={
+            (preview.kind === "avatar" && me?.equipped_avatar === preview.asset_key) ||
+            (preview.kind === "felt" && me?.equipped_felt === preview.asset_key) ||
+            (preview.kind === "card_back" && me?.equipped_card_back === preview.asset_key)
+          }
+          canAct={Boolean(me) && !busy}
+          onBuy={() => buy(preview.id)}
+          onUse={() => {
+            if (preview.kind === "avatar") void equip("avatar", preview.asset_key);
+          }}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -290,14 +306,12 @@ function Tile({
   item,
   isOwned,
   selected,
-  disabled,
-  onClick,
+  onOpen,
 }: {
   item: Item;
   isOwned: boolean;
   selected: boolean;
-  disabled: boolean;
-  onClick: () => void;
+  onOpen: () => void;
 }) {
   const status = isOwned
     ? selected
@@ -309,9 +323,8 @@ function Tile({
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={disabled || (isOwned && selected)}
-      aria-label={item.title}
+      onClick={onOpen}
+      aria-label={`${item.title}, ${status}. Tap to see it full screen`}
       title={item.title}
       className="flex flex-col overflow-hidden rounded-lg p-1 text-left"
       style={{
@@ -330,5 +343,83 @@ function Tile({
       <span className="mt-1 block truncate text-[11px]">{item.title}</span>
       <span className="block text-[11px] text-[var(--muted)]">{status}</span>
     </button>
+  );
+}
+
+function Preview({
+  item,
+  isOwned,
+  isEquipped,
+  canAct,
+  onBuy,
+  onUse,
+  onClose,
+}: {
+  item: Item;
+  isOwned: boolean;
+  isEquipped: boolean;
+  canAct: boolean;
+  onBuy: () => void;
+  onUse: () => void;
+  onClose: () => void;
+}) {
+  const isAvatar = item.kind === "avatar";
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={item.title}
+      className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-4 p-4"
+      style={{ background: "rgba(0,0,0,0.9)" }}
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="btn btn-ghost !py-2 !text-sm absolute right-4 top-[max(16px,env(safe-area-inset-top))]"
+      >
+        ✕
+      </button>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.asset_key}
+        alt={item.title}
+        onClick={(e) => e.stopPropagation()}
+        className={isAvatar ? "rounded-full object-cover" : "rounded-xl object-contain"}
+        style={
+          isAvatar
+            ? { width: "min(80vw, 60dvh)", height: "min(80vw, 60dvh)" }
+            : { maxWidth: "100%", maxHeight: "70dvh" }
+        }
+      />
+
+      <div className="text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="brand text-lg text-[var(--gold-strong)]">{item.title}</div>
+        <p className="text-sm text-[var(--muted)]">{item.description}</p>
+      </div>
+
+      <div onClick={(e) => e.stopPropagation()}>
+        {isOwned ? (
+          isAvatar ? (
+            <button
+              type="button"
+              className="btn btn-gold"
+              disabled={!canAct || isEquipped}
+              onClick={onUse}
+            >
+              {isEquipped ? "Using this avatar" : "Use this avatar"}
+            </button>
+          ) : (
+            <span className="chip">Owned · pick it at the table in the ☰ menu</span>
+          )
+        ) : (
+          <button type="button" className="btn btn-gold" disabled={!canAct} onClick={onBuy}>
+            {item.copper_price ? `Buy · ${item.copper_price} copper` : "Get it free"}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
