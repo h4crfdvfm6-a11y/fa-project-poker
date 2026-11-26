@@ -90,7 +90,7 @@ const DEFAULTS: Array<{
     kind: "felt",
     title: "Midnight Felt",
     description: "Deep blue table felt",
-    gem_price: 120,
+    gem_price: 0,
     chip_amount: 0,
     asset_key: "felt_midnight",
     sort_order: 70,
@@ -100,7 +100,7 @@ const DEFAULTS: Array<{
     kind: "felt",
     title: "Ember Felt",
     description: "Warm ember table felt",
-    gem_price: 120,
+    gem_price: 0,
     chip_amount: 0,
     asset_key: "felt_ember",
     sort_order: 80,
@@ -110,7 +110,7 @@ const DEFAULTS: Array<{
     kind: "felt",
     title: "Jade Felt",
     description: "Classic jade table felt",
-    gem_price: 100,
+    gem_price: 0,
     chip_amount: 0,
     asset_key: "felt_jade",
     sort_order: 90,
@@ -149,6 +149,10 @@ const DEFAULTS: Array<{
 
 async function ensureShopSchema() {
   await ensureOnce("shop-schema", async () => {
+    // felts are free: correct any felt already priced in the catalog
+    await sql(`update shop_catalog set gem_price = 0 where kind = 'felt' and gem_price <> 0`).catch(
+      () => undefined,
+    );
     // skip the ALTERs / catalog inserts when everything is already there
     if (
       await hasColumns([
