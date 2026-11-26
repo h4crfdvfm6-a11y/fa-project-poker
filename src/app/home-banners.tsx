@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-/** Full-screen FA Poker hero: the copper medallion on the black door. */
-const PICTURE = "/banners/Copper%20poker%20medallion%20on%20black%20door.png";
+/** Full-screen FA Poker hero: the cropped door with the copper medallion centred on the glass. */
+const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%207.41.14%20PM.jpeg";
 
 const LABEL: React.CSSProperties = {
   display: "block",
@@ -94,28 +94,28 @@ export function HomeScreen() {
         background: "#0b0b0d",
       }}
     >
-      {/* the door fills the whole phone screen, edge to edge; anchored left so the handle stays in view */}
+      {/* full picture width, so the whole glass frame and the handle show; anchored to the top */}
       <div
         aria-hidden
         style={{
           position: "absolute",
           inset: 0,
           backgroundImage: `url("${PICTURE}")`,
-          backgroundSize: "cover",
-          backgroundPosition: "left center",
+          backgroundSize: "100% auto",
+          backgroundPosition: "top center",
           backgroundRepeat: "no-repeat",
         }}
       />
 
-      {/* the login sits in the empty dark panel at the bottom of the door, clear of the handle */}
+      {/* the login sits in the empty dark panel below the glass, clear of the handle */}
       <form
         onSubmit={submit}
         style={{
           position: "absolute",
-          left: "21%",
-          right: "6%",
-          top: "61%",
-          bottom: "2%",
+          left: "14%",
+          right: "4%",
+          top: "48%",
+          bottom: "3%",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
