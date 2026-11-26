@@ -163,7 +163,6 @@ const SEA_BACKGROUNDS = [
   "room-lighthouse.jpg",
   "room-reef.jpg",
   "room-ship.jpg",
-  "Shark Club Beneath Schooling Fish.png",
 ];
 
 SEA_AVATARS.forEach((file, i) =>
