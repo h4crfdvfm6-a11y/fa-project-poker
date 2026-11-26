@@ -94,7 +94,7 @@ export function HomeScreen() {
         background: "#0b0b0d",
       }}
     >
-      {/* the door fills the whole phone screen, edge to edge, centred */}
+      {/* the door fills the whole phone screen, edge to edge; anchored left so the handle stays in view */}
       <div
         aria-hidden
         style={{
@@ -102,7 +102,7 @@ export function HomeScreen() {
           inset: 0,
           backgroundImage: `url("${PICTURE}")`,
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "left center",
           backgroundRepeat: "no-repeat",
         }}
       />
