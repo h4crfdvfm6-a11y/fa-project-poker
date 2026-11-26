@@ -1,12 +1,12 @@
 import Link from "next/link";
 import "./brand-mark.css";
 
-/** The COPPER POKER art deco medallion, used in page headers. */
+/** The FA Poker art deco medallion, used in page headers. */
 export const LOGO_NAME_SRC = "/banners/Copper%20Poker%20Art%20Deco%20Medallion.png";
 
 export function BrandMark({
   href = "/",
-  label = "Copper Poker",
+  label = "FA Poker",
   size = 36,
 }: {
   href?: string;
