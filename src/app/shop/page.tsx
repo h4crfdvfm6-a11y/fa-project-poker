@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { sized } from "@/lib/looks";
 
 type Item = {
   id: string;
@@ -25,25 +26,22 @@ type Me = {
   owned: string[];
 };
 
-const KIND_LABEL: Record<string, string> = {
-  copper_pack: "Copper coins",
-  chip_pack: "Chip packs",
-  theme_package: "Theme packages",
-  avatar: "Avatars",
-  background: "Table backgrounds",
+const THEME_ORDER = ["sea", "casino", "holiday", "nature", "urban"];
+const THEME_LABEL: Record<string, string> = {
+  sea: "Sea",
+  casino: "Casino",
+  holiday: "Holiday",
+  nature: "Nature",
+  urban: "Urban",
+};
+
+const BASIC_KINDS = ["felt", "card_back", "reaction_pack"];
+const BASIC_LABEL: Record<string, string> = {
   felt: "Table skins",
   card_back: "Card backs",
   reaction_pack: "Reactions",
 };
-
-const EQUIPPABLE = ["avatar", "felt", "card_back"];
-
-function priceLabel(item: Item) {
-  if (item.price_cents > 0) return `$${(item.price_cents / 100).toFixed(2)}`;
-  if (item.copper_price > 0) return `${item.copper_price} copper`;
-  if (item.kind === "copper_pack" || item.kind === "chip_pack") return "";
-  return "Free";
-}
+const PACK_KINDS = ["copper_pack", "chip_pack"];
 
 export default function ShopPage() {
   const [catalog, setCatalog] = useState<Item[]>([]);
@@ -62,51 +60,43 @@ export default function ShopPage() {
     void refresh();
   }, [refresh]);
 
-  async function buy(itemId: string) {
+  async function post(body: unknown, fallback: string) {
     setBusy(true);
     setError("");
     const res = await fetch("/api/shop", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "buy", itemId }),
+      body: JSON.stringify(body),
     });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setError(json.error || "Purchase failed");
+      setError(json.error || fallback);
       return;
     }
     setMe(json.me);
   }
 
-  async function equip(kind: "avatar" | "felt" | "card_back", assetKey: string) {
-    setBusy(true);
-    setError("");
-    const res = await fetch("/api/shop", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "equip", kind, assetKey }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Could not equip");
-      return;
-    }
-    setMe(json.me);
-  }
+  const buy = (itemId: string) => post({ action: "buy", itemId }, "Purchase failed");
+  const equip = (kind: "avatar" | "felt" | "card_back", assetKey: string) =>
+    post({ action: "equip", kind, assetKey }, "Could not equip");
 
-  const groups = Object.keys(KIND_LABEL);
+  const owned = new Set(me?.owned ?? []);
+
+  const themes = THEME_ORDER.map((theme) => ({
+    theme,
+    pkg: catalog.find((i) => i.kind === "theme_package" && i.theme === theme),
+    avatars: catalog.filter((i) => i.kind === "avatar" && i.theme === theme),
+    backgrounds: catalog.filter((i) => i.kind === "background" && i.theme === theme),
+  })).filter((t) => t.avatars.length || t.backgrounds.length);
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-5 pb-12 pt-[max(20px,env(safe-area-inset-top))]">
-      <div className="mb-6 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <Link href="/lobby" className="brand text-xl text-[var(--gold-strong)]">
-            Shop
-          </Link>
+          <h1 className="brand text-xl text-[var(--gold-strong)]">Shop</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Copper coins, chips, skins & cosmetics — play money only, never cash-out.
+            Buy with copper. Play money only, never cash-out.
           </p>
         </div>
         <Link href="/lobby" className="btn btn-ghost !py-2 !text-sm">
@@ -135,66 +125,210 @@ export default function ShopPage() {
         </p>
       )}
 
+      <p className="mb-4 text-sm text-[var(--muted)]">
+        Tap an avatar you own to use it. Backgrounds are picked at the table, in the ☰ menu.
+      </p>
+
       {error ? <p className="mb-3 text-sm text-[#ffb4b6]">{error}</p> : null}
 
-      {groups.map((kind) => {
+      {themes.map(({ theme, pkg, avatars, backgrounds }) => {
+        const all = [...avatars, ...backgrounds];
+        const ownedCount = all.filter((i) => owned.has(i.id)).length;
+        const allOwned = ownedCount === all.length;
+        return (
+          <details key={theme} className="panel mb-3 p-4">
+            <summary className="brand cursor-pointer text-lg">
+              {THEME_LABEL[theme]}
+              <span className="ml-2 text-sm text-[var(--muted)]">
+                {ownedCount}/{all.length} owned
+              </span>
+            </summary>
+
+            <div className="mt-4 grid gap-5">
+              {pkg && !allOwned && me ? (
+                <button
+                  type="button"
+                  className="btn btn-gold w-full"
+                  disabled={busy}
+                  onClick={() => buy(pkg.id)}
+                >
+                  Buy the whole {THEME_LABEL[theme]} set · {pkg.copper_price} copper
+                </button>
+              ) : null}
+
+              {avatars.length ? (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">Avatars</h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {avatars.map((item) => {
+                      const isOwned = owned.has(item.id);
+                      const equipped = me?.equipped_avatar === item.asset_key;
+                      return (
+                        <Tile
+                          key={item.id}
+                          item={item}
+                          isOwned={isOwned}
+                          selected={equipped}
+                          disabled={busy || !me}
+                          onClick={() =>
+                            isOwned ? equip("avatar", item.asset_key) : buy(item.id)
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {backgrounds.length ? (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">Backgrounds</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {backgrounds.map((item) => {
+                      const isOwned = owned.has(item.id);
+                      return (
+                        <Tile
+                          key={item.id}
+                          item={item}
+                          isOwned={isOwned}
+                          selected={false}
+                          disabled={busy || !me}
+                          onClick={() => {
+                            if (!isOwned) void buy(item.id);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </details>
+        );
+      })}
+
+      {BASIC_KINDS.map((kind) => {
         const items = catalog.filter((i) => i.kind === kind);
         if (!items.length) return null;
         return (
-          <section key={kind} className="mb-6">
-            <h2 className="brand mb-3 text-xl">{KIND_LABEL[kind]}</h2>
-            <div className="grid gap-3">
+          <details key={kind} className="panel mb-3 p-4">
+            <summary className="brand cursor-pointer text-lg">{BASIC_LABEL[kind]}</summary>
+            <div className="mt-4 grid gap-3">
               {items.map((item) => {
-                const owned = me?.owned?.includes(item.id);
-                const realMoney = item.price_cents > 0;
+                const isOwned = owned.has(item.id);
                 const equipped =
-                  (kind === "avatar" && me?.equipped_avatar === item.asset_key) ||
                   (kind === "felt" && me?.equipped_felt === item.asset_key) ||
                   (kind === "card_back" && me?.equipped_card_back === item.asset_key);
-                const price = priceLabel(item);
                 return (
-                  <article key={item.id} className="panel p-4">
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <div>
-                        <div className="font-semibold">{item.title}</div>
-                        <p className="text-sm text-[var(--muted)]">{item.description}</p>
-                      </div>
-                      {price ? <span className="chip">{price}</span> : null}
+                  <div key={item.id} className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">{item.title}</div>
+                      <p className="text-sm text-[var(--muted)]">{item.description}</p>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {realMoney ? (
-                        <button className="btn btn-ghost !py-2 !text-sm" disabled>
-                          Store coming soon
-                        </button>
-                      ) : EQUIPPABLE.includes(kind) && owned ? (
+                    {isOwned ? (
+                      kind === "reaction_pack" ? (
+                        <span className="chip">Owned</span>
+                      ) : (
                         <button
+                          type="button"
                           className="btn btn-ghost !py-2 !text-sm"
                           disabled={busy || equipped}
                           onClick={() =>
-                            equip(kind as "avatar" | "felt" | "card_back", item.asset_key)
+                            equip(kind as "felt" | "card_back", item.asset_key)
                           }
                         >
                           {equipped ? "Equipped" : "Equip"}
                         </button>
-                      ) : owned ? (
-                        <span className="chip">Owned</span>
-                      ) : (
-                        <button
-                          className="btn btn-gold !py-2 !text-sm"
-                          disabled={busy || !me}
-                          onClick={() => buy(item.id)}
-                        >
-                          {item.copper_price === 0 && kind !== "theme_package" ? "Get" : "Buy"}
-                        </button>
-                      )}
-                    </div>
-                  </article>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-gold !py-2 !text-sm"
+                        disabled={busy || !me}
+                        onClick={() => buy(item.id)}
+                      >
+                        {item.copper_price ? `${item.copper_price} copper` : "Get"}
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
-          </section>
+          </details>
+        );
+      })}
+
+      {PACK_KINDS.map((kind) => {
+        const items = catalog.filter((i) => i.kind === kind);
+        if (!items.length) return null;
+        return (
+          <details key={kind} className="panel mb-3 p-4">
+            <summary className="brand cursor-pointer text-lg">
+              {kind === "copper_pack" ? "Buy copper" : "Buy chips"}
+            </summary>
+            <div className="mt-4 grid gap-3">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{item.title}</div>
+                    <p className="text-sm text-[var(--muted)]">{item.description}</p>
+                  </div>
+                  <button type="button" className="btn btn-ghost !py-2 !text-sm" disabled>
+                    Store coming soon
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
         );
       })}
     </main>
+  );
+}
+
+function Tile({
+  item,
+  isOwned,
+  selected,
+  disabled,
+  onClick,
+}: {
+  item: Item;
+  isOwned: boolean;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const status = isOwned
+    ? selected
+      ? "Using"
+      : "Owned"
+    : item.copper_price
+      ? `${item.copper_price} copper`
+      : "Free";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || (isOwned && selected)}
+      aria-label={item.title}
+      title={item.title}
+      className="flex flex-col overflow-hidden rounded-lg p-1 text-left"
+      style={{
+        border: selected ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.2)",
+        background: "rgba(0,0,0,0.25)",
+        boxShadow: selected ? "0 0 8px rgba(255, 211, 77, 0.6)" : "none",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={sized(item.asset_key, 256)}
+        alt=""
+        className="aspect-square w-full rounded-md object-cover"
+        style={{ opacity: isOwned ? 1 : 0.5 }}
+      />
+      <span className="mt-1 block truncate text-[11px]">{item.title}</span>
+      <span className="block text-[11px] text-[var(--muted)]">{status}</span>
+    </button>
   );
 }
