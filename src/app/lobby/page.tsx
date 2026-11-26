@@ -153,7 +153,7 @@ export default function LobbyPage() {
           </div>
         </div>
         <div className="bbjp-meta text-right text-xs">
-          <div>{data.bbjp.enabled ? "Live" : "Off"}</div>
+          <div>{data.bbjp.enabled || data.tables.some((t) => t.bbjp_enabled) ? "Live" : "Off"}</div>
           <div>
             Min {data.bbjp.minimum_hand || data.bbjp.trigger_hand}
           </div>
