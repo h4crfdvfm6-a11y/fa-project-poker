@@ -94,7 +94,7 @@ export function HomeScreen() {
         background: "#0b0b0d",
       }}
     >
-      {/* full picture width so the whole glass frame and the handle show; sits a little below the top edge */}
+      {/* full picture width so the whole glass frame and the handle show; sits well below the top edge */}
       <div
         aria-hidden
         style={{
@@ -102,7 +102,7 @@ export function HomeScreen() {
           inset: 0,
           backgroundImage: `url("${PICTURE}")`,
           backgroundSize: "100% auto",
-          backgroundPosition: "center 36px",
+          backgroundPosition: "center 110px",
           backgroundRepeat: "no-repeat",
         }}
       />
@@ -114,7 +114,7 @@ export function HomeScreen() {
           position: "absolute",
           left: "14%",
           right: "4%",
-          top: "50%",
+          top: "60%",
           bottom: "3%",
           display: "flex",
           flexDirection: "column",
