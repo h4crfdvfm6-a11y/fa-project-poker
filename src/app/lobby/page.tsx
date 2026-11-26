@@ -122,6 +122,9 @@ export default function LobbyPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Link href="/shop" className="btn btn-gold !py-2 !text-xs">
+            Shop
+          </Link>
           {data.me ? null : (
             <button
               type="button"
