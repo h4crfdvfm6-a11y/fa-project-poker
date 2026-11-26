@@ -44,6 +44,39 @@ const SHOW_REWARDS = false;
 /** How long each reward stays on screen before the next one. */
 const SLIDE_MS = 4000;
 
+/** Splash buttons: same size and look as the buttons printed on the picture. */
+const BIG_BUTTON = {
+  display: "flex",
+  width: "100%",
+  height: 64,
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 10,
+  fontSize: 22,
+  fontWeight: 800,
+  letterSpacing: "0.02em",
+  textDecoration: "none",
+} as const;
+
+const LOG_IN_STYLE = {
+  ...BIG_BUTTON,
+  color: "#140a04",
+  background:
+    "linear-gradient(180deg, #e9ad7f 0%, #c97a44 42%, #a65a2a 58%, #dc9562 100%)",
+  border: "1px solid #6b3418",
+  boxShadow:
+    "inset 0 1px 0 rgba(255, 240, 225, 0.75), inset 0 -2px 0 rgba(80, 36, 12, 0.5), 0 3px 8px rgba(0, 0, 0, 0.55)",
+} as const;
+
+const CREATE_STYLE = {
+  ...BIG_BUTTON,
+  color: "#f1d9a8",
+  fontWeight: 700,
+  background: "rgba(0, 0, 0, 0.55)",
+  border: "2px solid #c9a45c",
+  boxShadow: "0 0 14px rgba(201, 164, 92, 0.25)",
+} as const;
+
 async function exists(url: string) {
   try {
     const r = await fetch(url, { method: "HEAD" });
@@ -193,11 +226,14 @@ export function HomeScreen() {
 
       <div className="home-bottom">
         {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
-        <div className="home-buttons" style={{ display: "grid", gap: 10 }}>
-          <Link href="/login" className="btn btn-gold">
+        <div
+          className="home-buttons"
+          style={{ display: "grid", gap: 14, width: "100%", padding: "0 6%", boxSizing: "border-box" }}
+        >
+          <Link href="/login" style={LOG_IN_STYLE}>
             Log in
           </Link>
-          <Link href="/signup" className="btn btn-ghost">
+          <Link href="/signup" style={CREATE_STYLE}>
             Create account
           </Link>
         </div>
