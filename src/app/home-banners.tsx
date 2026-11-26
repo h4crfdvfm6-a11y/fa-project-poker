@@ -107,14 +107,14 @@ export function HomeScreen() {
         }}
       />
 
-      {/* the sign-in sits centred in the empty dark panel at the bottom of the door, evenly spaced */}
+      {/* the sign-in sits inside the lower inner frame of the door, evenly spaced */}
       <form
         onSubmit={submit}
         style={{
           position: "absolute",
           left: "14%",
-          right: "4%",
-          top: "59%",
+          right: "11%",
+          top: "57%",
           bottom: "3%",
           display: "flex",
           flexDirection: "column",
