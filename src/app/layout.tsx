@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cinzel, Fraunces, Manrope, Roboto_Condensed } from "next/font/google";
 import "./globals.css";
+import "./copper-metal.css";
 import { FELT_INIT_SCRIPT } from "@/lib/felt";
 
 const display = Fraunces({
@@ -8,7 +9,7 @@ const display = Fraunces({
   subsets: ["latin"],
 });
 
-/** Matches the Card Sharks / Shark Club logo lettering (classic Roman capitals). */
+/** Classic Roman capitals for the FA Poker wordmark. */
 const logo = Cinzel({
   variable: "--font-logo",
   subsets: ["latin"],
@@ -28,9 +29,9 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Shark Club – Poker Simulator",
+  title: "FA Poker",
   description:
-    "Private club poker with friends — Texas Hold'em and Omaha, free club chips.",
+    "Free-play poker with friends — Texas Hold'em, Omaha and more. Play money only.",
   icons: {
     // the owner's app icon (512×512, uploaded to public/banners)
     icon: "/banners/app-icon.png",
@@ -38,13 +39,13 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Shark Club",
+    title: "FA Poker",
     statusBarStyle: "black-translucent",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#08143a",
+  themeColor: "#0b0b0d",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
