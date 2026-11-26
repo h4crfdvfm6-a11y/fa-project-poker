@@ -34,7 +34,14 @@ export default function SignupPage() {
       <img
         src="/banners/Copper%20Poker%20Art%20Deco%20Medallion.png"
         alt="FA Poker"
-        style={{ display: "block", width: 200, height: "auto", margin: "0 auto 20px" }}
+        style={{
+          display: "block",
+          width: 200,
+          height: 200,
+          objectFit: "cover",
+          borderRadius: "50%",
+          margin: "0 auto 20px",
+        }}
       />
       <form className="panel" onSubmit={submit} style={{ padding: 20 }}>
         <label className="label" htmlFor="name">Display name</label>
