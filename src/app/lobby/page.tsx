@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
 import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
-import { useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { GAME_TYPES, gameTypeLabel, isGameType } from "@/lib/poker/variants";
 
 type LobbyData = {
@@ -46,7 +46,11 @@ function money(v: string | number) {
 
 export default function LobbyPage() {
   const [data, setData] = useState<LobbyData | null>(null);
+  const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [invite, setInvite] = useState("");
   const [game, setGame] = useState("ALL");
+  const [clubOpen, setClubOpen] = useState(false);
   const load = useCallback(async () => {
     const res = await fetch("/api/lobby", { cache: "no-store" });
     const json = await res.json();
@@ -75,6 +79,26 @@ export default function LobbyPage() {
     return () => clearInterval(t);
   }, [waitingForTournament, load]);
 
+  async function join(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    const res = await fetch("/api/join", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ inviteCode: invite, displayName: name }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Could not join");
+      return;
+    }
+    if (json.admin) {
+      window.location.assign("/admin");
+      return;
+    }
+    await load();
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.assign("/login");
@@ -98,6 +122,15 @@ export default function LobbyPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">{data.club.name}</p>
         </div>
         <div className="flex shrink-0 gap-2">
+          {data.me ? null : (
+            <button
+              type="button"
+              className="btn btn-ghost !py-2 !text-xs"
+              onClick={() => setClubOpen((v) => !v)}
+            >
+              {clubOpen ? "Close" : "Poker club"}
+            </button>
+          )}
           {data.me || data.isAdmin ? (
             <button
               type="button"
@@ -140,16 +173,43 @@ export default function LobbyPage() {
             {money(data.me.chip_balance)}
           </div>
         </div>
+      ) : clubOpen ? (
+        <form onSubmit={join} className="panel mb-5 grid gap-3 p-4">
+          <div>
+            <label className="label">Your name</label>
+            <input
+              className="field"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Player name"
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Club invite</label>
+            <input
+              className="field"
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+              placeholder="Club invite code"
+              required
+            />
+          </div>
+          {error ? <p className="text-sm text-[#ffb4b6]">{error}</p> : null}
+          <button className="btn btn-gold" type="submit">
+            Join club
+          </button>
+        </form>
       ) : (
         <div className="panel mb-5 grid gap-3 p-4">
           <p className="text-sm text-[var(--muted)]">
-            Create an account to take a seat, or log in if you already have one.
+            Log in to take a seat, or create a free account.
           </p>
-          <Link href="/signup" className="btn btn-gold">
-            Create account
-          </Link>
-          <Link href="/login" className="btn btn-ghost">
+          <Link href="/login" className="btn btn-gold">
             Log in
+          </Link>
+          <Link href="/signup" className="btn btn-ghost">
+            Create account
           </Link>
         </div>
       )}
