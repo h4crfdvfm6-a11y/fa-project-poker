@@ -19,3 +19,9 @@
   object-fit: contain;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
 }
+
+/* the medallion is round wherever it appears (table centre, headers, sign-up) */
+img[src*="Art%20Deco%20Medallion"] {
+  border-radius: 50%;
+  object-fit: cover;
+}
