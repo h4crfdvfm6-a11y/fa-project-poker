@@ -107,13 +107,13 @@ export function HomeScreen() {
         }}
       />
 
-      {/* the login sits in the empty dark panel at the bottom of the door */}
+      {/* the login sits in the empty dark panel at the bottom of the door, clear of the handle */}
       <form
         onSubmit={submit}
         style={{
           position: "absolute",
-          left: "10%",
-          right: "10%",
+          left: "21%",
+          right: "6%",
           top: "61%",
           bottom: "2%",
           display: "flex",
