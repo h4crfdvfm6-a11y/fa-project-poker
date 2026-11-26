@@ -8,13 +8,15 @@ type Item = {
   kind: string;
   title: string;
   description: string;
-  gem_price: number;
+  copper_price: number;
+  price_cents: number;
+  theme: string;
   chip_amount: number | string;
   asset_key: string;
 };
 
 type Me = {
-  gem_balance: number;
+  copper_balance: number;
   chip_balance: number;
   equipped_avatar: string;
   equipped_felt: string;
@@ -24,12 +26,24 @@ type Me = {
 };
 
 const KIND_LABEL: Record<string, string> = {
+  copper_pack: "Copper coins",
   chip_pack: "Chip packs",
+  theme_package: "Theme packages",
   avatar: "Avatars",
+  background: "Table backgrounds",
   felt: "Table skins",
   card_back: "Card backs",
   reaction_pack: "Reactions",
 };
+
+const EQUIPPABLE = ["avatar", "felt", "card_back"];
+
+function priceLabel(item: Item) {
+  if (item.price_cents > 0) return `$${(item.price_cents / 100).toFixed(2)}`;
+  if (item.copper_price > 0) return `${item.copper_price} copper`;
+  if (item.kind === "copper_pack" || item.kind === "chip_pack") return "";
+  return "Free";
+}
 
 export default function ShopPage() {
   const [catalog, setCatalog] = useState<Item[]>([]);
@@ -92,7 +106,7 @@ export default function ShopPage() {
             Shop
           </Link>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Chips, skins & cosmetics — play money only, never cash-out.
+            Copper coins, chips, skins & cosmetics — play money only, never cash-out.
           </p>
         </div>
         <Link href="/lobby" className="btn btn-ghost !py-2 !text-sm">
@@ -103,9 +117,9 @@ export default function ShopPage() {
       {me ? (
         <div className="panel mb-5 grid grid-cols-2 gap-3 p-4">
           <div>
-            <div className="text-xs text-[var(--muted)]">Gems</div>
+            <div className="text-xs text-[var(--muted)]">Copper</div>
             <div className="brand text-2xl text-[var(--gold-strong)]">
-              {me.gem_balance}
+              {Number(me.copper_balance).toLocaleString()}
             </div>
           </div>
           <div>
@@ -132,48 +146,46 @@ export default function ShopPage() {
             <div className="grid gap-3">
               {items.map((item) => {
                 const owned = me?.owned?.includes(item.id);
+                const realMoney = item.price_cents > 0;
                 const equipped =
                   (kind === "avatar" && me?.equipped_avatar === item.asset_key) ||
                   (kind === "felt" && me?.equipped_felt === item.asset_key) ||
-                  (kind === "card_back" &&
-                    me?.equipped_card_back === item.asset_key);
+                  (kind === "card_back" && me?.equipped_card_back === item.asset_key);
+                const price = priceLabel(item);
                 return (
                   <article key={item.id} className="panel p-4">
                     <div className="mb-1 flex items-start justify-between gap-2">
                       <div>
                         <div className="font-semibold">{item.title}</div>
-                        <p className="text-sm text-[var(--muted)]">
-                          {item.description}
-                        </p>
+                        <p className="text-sm text-[var(--muted)]">{item.description}</p>
                       </div>
-                      <span className="chip">{item.gem_price} gems</span>
+                      {price ? <span className="chip">{price}</span> : null}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {kind === "chip_pack" || !owned ? (
+                      {realMoney ? (
+                        <button className="btn btn-ghost !py-2 !text-sm" disabled>
+                          Store coming soon
+                        </button>
+                      ) : EQUIPPABLE.includes(kind) && owned ? (
+                        <button
+                          className="btn btn-ghost !py-2 !text-sm"
+                          disabled={busy || equipped}
+                          onClick={() =>
+                            equip(kind as "avatar" | "felt" | "card_back", item.asset_key)
+                          }
+                        >
+                          {equipped ? "Equipped" : "Equip"}
+                        </button>
+                      ) : owned ? (
+                        <span className="chip">Owned</span>
+                      ) : (
                         <button
                           className="btn btn-gold !py-2 !text-sm"
                           disabled={busy || !me}
                           onClick={() => buy(item.id)}
                         >
-                          Buy
+                          {item.copper_price === 0 && kind !== "theme_package" ? "Get" : "Buy"}
                         </button>
-                      ) : kind === "avatar" ||
-                        kind === "felt" ||
-                        kind === "card_back" ? (
-                        <button
-                          className="btn btn-ghost !py-2 !text-sm"
-                          disabled={busy || equipped}
-                          onClick={() =>
-                            equip(
-                              kind as "avatar" | "felt" | "card_back",
-                              item.asset_key,
-                            )
-                          }
-                        >
-                          {equipped ? "Equipped" : "Equip"}
-                        </button>
-                      ) : (
-                        <span className="chip">Owned</span>
                       )}
                     </div>
                   </article>
