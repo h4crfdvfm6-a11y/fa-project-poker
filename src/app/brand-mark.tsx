@@ -1,12 +1,12 @@
 import Link from "next/link";
 import "./brand-mark.css";
 
-/** The owner's Shark Club logo (two sharks + SHARK CLUB), used in page headers. */
-export const LOGO_NAME_SRC = "/banners/logo-gap65.png";
+/** The COPPER POKER art deco medallion, used in page headers. */
+export const LOGO_NAME_SRC = "/banners/Copper%20Poker%20Art%20Deco%20Medallion.png";
 
 export function BrandMark({
   href = "/",
-  label = "Shark Club",
+  label = "Copper Poker",
   size = 36,
 }: {
   href?: string;
