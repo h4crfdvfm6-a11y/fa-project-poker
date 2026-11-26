@@ -59,7 +59,7 @@ item({ id: "felt_jade", kind: "felt", title: "Jade Felt", description: "Classic 
 item({ id: "back_gold", kind: "card_back", title: "Gold Card Back", description: "Gold-trimmed card backs", asset_key: "back_gold" });
 item({ id: "back_rose", kind: "card_back", title: "Rose Card Back", description: "Rose card backs", asset_key: "back_rose" });
 
-// ---- Theme sets: first avatar and first background free, rest paid, package bundles the rest ----
+// ---- Theme sets: the package bundles the rest ----
 const THEMES = [
   {
     key: "casino",
@@ -111,6 +111,9 @@ const THEMES = [
   },
 ];
 
+// Only ONE avatar in the whole shop is free per account: the first casino avatar.
+const FREE_AVATAR_ID = "casino_avatar_01";
+
 for (const t of THEMES) {
   t.avatars.forEach((path, i) =>
     item({
@@ -119,7 +122,7 @@ for (const t of THEMES) {
       title: `${t.label} Avatar ${i + 1}`,
       description: `${t.label} theme avatar`,
       asset_key: path,
-      copper_price: i === 0 ? 0 : 200,
+      copper_price: `${t.key}_avatar_${pad(i + 1)}` === FREE_AVATAR_ID ? 0 : 200,
       theme: t.key,
     }),
   );
@@ -145,7 +148,7 @@ for (const t of THEMES) {
   });
 }
 
-// ---- Sea theme: the older Shark Club art, all paid ----
+// ---- Sea theme: the older Shark Club art, all paid (no free items) ----
 const SEA_AVATARS = [
   "Amber-Eyed Octopus Poker Strategist-2.png",
   "Burnt-orange cuttlefish illusionist-4.png",
@@ -215,7 +218,8 @@ item({ id: "pack_chips_150k", kind: "chip_pack", title: "150,000 Chips", descrip
 const RETIRED_IDS = ["pack_starter", "pack_plus", "pack_stack", "avatar_fox", "avatar_owl", "avatar_crown"];
 
 async function ensureShopSchema() {
-  await ensureOnce("shop-schema-copper-v1", async () => {
+  // v2: re-seeds prices (one free avatar; sea theme and the other avatars cost copper)
+  await ensureOnce("shop-schema-copper-v2", async () => {
     await sql(`alter table members add column if not exists gem_balance integer not null default 0`);
     await sql(`alter table members add column if not exists copper_balance integer not null default 0`);
     await sql(
