@@ -1,210 +1,170 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { BrandMark } from "./brand-mark";
-import "./home.css";
+import { FormEvent, useState } from "react";
 
-/** Full-screen Shark Club picture (in public/banners/ on GitHub); first one found is used. */
-const HOME_PICTURES = [
-  // smaller shark, built into the picture (owner uploads it)
-  "/banners/shark-club-home-small.jpg",
-  "/banners/home-background.gif",
-  "/banners/shark-club-home.webp",
-  "/banners/913264387_1634729197943554_7988411377112276360_n.jpg",
-];
+/** Full-screen FA Poker hero: the cropped door with the copper medallion centred on the glass. */
+const PICTURE = "/banners/WhatsApp%20Image%202026-11-26%20at%208.38.41%20PM.jpeg";
 
-/** Moving-water version of the picture; the smaller-shark one first when uploaded. */
-const HOME_VIDEOS = ["/banners/home-water-small.mp4", "/banners/home-water.mp4"];
+const LABEL: React.CSSProperties = {
+  display: "block",
+  fontSize: 13,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "#e9cf9e",
+  marginBottom: 4,
+};
 
-/**
- * Reward tiles, best first: see-through animated WebP (no background at all,
- * works on every phone), then MP4, then the original GIF.
- */
-const BANNERS = [
-  {
-    alt: "Bad Beat Jackpot",
-    files: [
-      "/banners/bad-beat-jackpot.webp",
-      "/banners/bad-beat-jackpot.mp4",
-      "/banners/Bad_Beat_Jackpot.gif",
-    ],
-  },
-  {
-    alt: "High Hand",
-    files: ["/banners/high-hand.webp", "/banners/high-hand.mp4", "/banners/High_Hand.gif"],
-  },
-  {
-    alt: "Hand of the Day",
-    files: [
-      "/banners/hand-of-the-day.webp",
-      "/banners/hand-of-the-day.mp4",
-      "/banners/Hand_of_the_Day.gif",
-    ],
-  },
-];
+const FIELD: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  height: 46,
+  boxSizing: "border-box",
+  borderRadius: 10,
+  border: "1px solid rgba(201, 164, 92, 0.75)",
+  background: "rgba(0, 0, 0, 0.45)",
+  color: "#f5f3ef",
+  padding: "0 14px",
+  fontSize: 16, // 16px stops iPhone zooming in when a field is tapped
+  outline: "none",
+};
 
-/** Reward GIFs under the shark — switched off at the user's request. */
-const SHOW_REWARDS = false;
+const BUTTON: React.CSSProperties = {
+  display: "flex",
+  width: "100%",
+  height: 50,
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 10,
+  fontSize: 19,
+  fontWeight: 800,
+  letterSpacing: "0.02em",
+  textDecoration: "none",
+  cursor: "pointer",
+};
 
-/** How long each reward stays on screen before the next one. */
-const SLIDE_MS = 4000;
+const LOG_IN: React.CSSProperties = {
+  ...BUTTON,
+  border: "1px solid #6b3418",
+  color: "#140a04",
+  background:
+    "linear-gradient(180deg, #e9ad7f 0%, #c97a44 42%, #a65a2a 58%, #dc9562 100%)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255, 240, 225, 0.75), inset 0 -2px 0 rgba(80, 36, 12, 0.5), 0 3px 8px rgba(0, 0, 0, 0.55)",
+};
 
-async function exists(url: string) {
-  try {
-    const r = await fetch(url, { method: "HEAD" });
-    return r.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function firstThatExists(files: string[]) {
-  for (const f of files) if (await exists(f)) return f;
-  return null;
-}
-
-type Slide = { alt: string; src: string };
-
-function RewardSquare({ slides }: { slides: Slide[] }) {
-  const [active, setActive] = useState(0);
-  const videos = useRef<Array<HTMLVideoElement | null>>([]);
-
-  // Move to the next reward every few seconds, looping.
-  useEffect(() => {
-    if (slides.length < 2) return;
-    const t = setInterval(() => setActive((i) => (i + 1) % slides.length), SLIDE_MS);
-    return () => clearInterval(t);
-  }, [slides.length]);
-
-  // Videos restart from the beginning each time they come on screen.
-  useEffect(() => {
-    const v = videos.current[active];
-    if (v) {
-      v.currentTime = 0;
-      void v.play().catch(() => undefined);
-    }
-  }, [active]);
-
-  return (
-    <div className="home-square" aria-label="Club rewards">
-      {slides.map((s, i) =>
-        s.src.endsWith(".mp4") ? (
-          <video
-            key={s.src}
-            ref={(el) => {
-              videos.current[i] = el;
-            }}
-            src={s.src}
-            aria-label={s.alt}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className={i === active ? "on" : ""}
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={s.src}
-            src={s.src}
-            alt={s.alt}
-            loading="eager"
-            className={`${i === active ? "on" : ""} ${s.src.endsWith(".webp") ? "clear" : ""}`}
-          />
-        ),
-      )}
-    </div>
-  );
-}
-
-/**
- * iPhone only autoplays a video if it is muted *as an attribute* when it
- * starts (React only sets the property), and Low Power Mode blocks autoplay
- * until the first tap. So: force muted, try to play, and try again on the
- * first touch.
- */
-function startOnIphone(v: HTMLVideoElement | null) {
-  if (!v) return;
-  v.muted = true;
-  v.defaultMuted = true;
-  v.setAttribute("muted", "");
-  v.setAttribute("playsinline", "");
-  v.setAttribute("webkit-playsinline", "");
-  const play = () => void v.play().catch(() => undefined);
-  play();
-  const onTouch = () => {
-    play();
-    window.removeEventListener("touchstart", onTouch);
-    window.removeEventListener("click", onTouch);
-  };
-  window.addEventListener("touchstart", onTouch, { passive: true });
-  window.addEventListener("click", onTouch);
-}
+const CREATE: React.CSSProperties = {
+  ...BUTTON,
+  fontWeight: 700,
+  color: "#f1d9a8",
+  background: "rgba(0, 0, 0, 0.6)",
+  border: "2px solid #c9a45c",
+};
 
 export function HomeScreen() {
-  const [picture, setPicture] = useState<string | false | null>(null);
-  const [video, setVideo] = useState<string | null>(null);
-  const [slides, setSlides] = useState<Slide[]>([]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void firstThatExists(HOME_PICTURES).then((src) => {
-      if (!cancelled) setPicture(src ?? false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
-    void firstThatExists(HOME_VIDEOS).then((src) => {
-      if (!cancelled) setVideo(src);
-    });
-    if (SHOW_REWARDS) Promise.all(
-      BANNERS.map(async (b) => {
-        const src = await firstThatExists(b.files);
-        return src ? { alt: b.alt, src } : null;
-      }),
-    ).then((list) => {
-      if (!cancelled) setSlides(list.filter((x): x is Slide => Boolean(x)));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const data = (await res.json().catch(() => ({}))) as { error?: string; admin?: boolean };
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.error ?? "Sign in failed");
+      return;
+    }
+    window.location.assign(data.admin ? "/admin" : "/lobby");
+  }
 
   return (
-    <main className="home-screen">
-      {picture && video && !picture.endsWith(".gif") ? (
-        <video
-          ref={startOnIphone}
-          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
-          src={video}
-          poster={picture}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        />
-      ) : picture ? (
-        <div
-          className={`home-picture ${picture.includes("-small") ? "clean" : ""}`}
-          style={{ backgroundImage: `url("${picture}")` }}
-        />
-      ) : picture === false ? (
-        <div className="home-fallback-brand">
-          <BrandMark size={48} />
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        overflow: "hidden",
+        background: "#0b0b0d",
+      }}
+    >
+      {/* full picture width so the whole glass frame and the handle show; sits a little below the top edge */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url("${PICTURE}")`,
+          backgroundSize: "100% auto",
+          backgroundPosition: "center 36px",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+
+      {/* the sign-in sits inside the lower inner frame of the door, evenly spaced */}
+      <form
+        onSubmit={submit}
+        style={{
+          position: "absolute",
+          left: "14%",
+          right: "11%",
+          top: "57%",
+          bottom: "3%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-evenly",
+          gap: 8,
+        }}
+      >
+        <div>
+          <label htmlFor="home-email" style={LABEL}>Email address</label>
+          <input
+            id="home-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            required
+            style={FIELD}
+          />
         </div>
-      ) : null}
+        <div>
+          <label htmlFor="home-password" style={LABEL}>Password</label>
+          <input
+            id="home-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            required
+            style={FIELD}
+          />
+        </div>
 
-      {/* the club name: still, centred under the shark (the -small files already have it) */}
-      {picture && !picture.includes("-small") ? <div className="home-name">SHARK CLUB</div> : null}
+        {error ? (
+          <p style={{ color: "#ff8b9b", margin: 0, fontSize: 14, textAlign: "center" }}>{error}</p>
+        ) : null}
 
-      <div className="home-bottom">
-        {SHOW_REWARDS && slides.length ? <RewardSquare slides={slides} /> : null}
-        <div className="home-buttons">
-          <Link href="/lobby" className="btn btn-gold">
-            Enter club lobby
+        <button type="submit" disabled={busy} style={{ ...LOG_IN, opacity: busy ? 0.7 : 1 }}>
+          {busy ? "Signing in…" : "Log in"}
+        </button>
+        <Link href="/signup" style={CREATE}>
+          Create account
+        </Link>
+        <p style={{ textAlign: "center", margin: "0" }}>
+          <Link href="/forgot" style={{ color: "#d9d4cb", fontSize: 14 }}>
+            Forgot password?
           </Link>
-        </div>
-      </div>
+        </p>
+      </form>
     </main>
   );
 }

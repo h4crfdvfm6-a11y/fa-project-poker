@@ -11,10 +11,10 @@ export const FELT_STYLES: Record<string, string> = {
     "radial-gradient(circle at 50% 40%, #a85a3a 0%, #6b2a1a 55%, #3d140c 100%)",
 };
 
+// Retired card backs (back_gold, back_rose) were removed: an account that still
+// has one equipped falls through to the standard dark compass back.
 export const CARD_BACK_STYLES: Record<string, string> = {
   back_navy: "#1a1030",
-  back_gold: "linear-gradient(145deg,#5c4818,#c9a227)",
-  back_rose: "linear-gradient(145deg,#4a1830,#a23a5c)",
 };
 
 export const AVATAR_GLYPH: Record<string, string> = {

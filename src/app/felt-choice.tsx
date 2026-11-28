@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-import { FELTS, FELT_KEY, ROOMS, ROOM_KEY } from "@/lib/felt";
+import { FELTS, FELT_KEY, ROOM_KEY } from "@/lib/felt";
 import { sized } from "@/lib/looks";
 import "./table-looks.css";
+import "./table-owned-rooms.css";
+import "./table-felt-logo.css";
+
+type OwnedBackground = { id: string; title: string; asset_key: string };
+
+/** the casino room is always there; the others are the backgrounds the player bought in the shop */
+const CASINO = { id: "casino", title: "Casino", src: "/banners/casino-table.jpg" };
 
 function applyFelt(id: string) {
   if (id === "classic") document.documentElement.removeAttribute("data-felt");
@@ -53,26 +60,57 @@ export function FeltPicker() {
         />
       ))}
     </div>
-
   );
+}
+
+/** Show the chosen background around the table. The casino room, or a shop background (its picture path). */
+function applyRoom(path: string | null) {
+  const root = document.documentElement;
+  if (path) {
+    root.style.setProperty("--owned-room", `url("${path}")`);
+    root.setAttribute("data-room", "owned");
+  } else {
+    root.style.removeProperty("--owned-room");
+    root.removeAttribute("data-room");
+  }
 }
 
 /** Pick the room around the table (in the table's ☰ menu). Saved on this phone. */
 export function RoomPicker() {
   const [room, setRoom] = useState("casino");
+  const [owned, setOwned] = useState<OwnedBackground[] | null>(null);
 
   useEffect(() => {
+    let stored = "casino";
     try {
-      setRoom(localStorage.getItem(ROOM_KEY) || "casino");
+      stored = localStorage.getItem(ROOM_KEY) || "casino";
     } catch {
       // private mode: stays in the casino
     }
+    setRoom(stored);
+    if (stored.startsWith("/banners/")) applyRoom(stored);
+
+    let alive = true;
+    fetch("/api/shop", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { catalog?: Array<OwnedBackground & { kind: string }>; me?: { owned?: string[] } | null }) => {
+        if (!alive) return;
+        const mine = new Set(json.me?.owned ?? []);
+        setOwned(
+          (json.catalog ?? []).filter((i) => i.kind === "background" && mine.has(i.id)),
+        );
+      })
+      .catch(() => {
+        if (alive) setOwned([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   function choose(id: string) {
     setRoom(id);
-    if (id === "casino") document.documentElement.removeAttribute("data-room");
-    else document.documentElement.setAttribute("data-room", id);
+    applyRoom(id === "casino" ? null : id);
     try {
       localStorage.setItem(ROOM_KEY, id);
     } catch {
@@ -80,22 +118,23 @@ export function RoomPicker() {
     }
   }
 
+  const rooms = [CASINO, ...(owned ?? []).map((o) => ({ id: o.asset_key, title: o.title, src: o.asset_key }))];
+
   return (
     <div className="flex flex-wrap gap-2">
-      {ROOMS.map((r) => (
+      {rooms.map((r) => (
         <button
           key={r.id}
           type="button"
-          aria-label={r.label}
-          title={r.label}
+          aria-label={r.title}
+          title={r.title}
           aria-pressed={room === r.id}
           onClick={() => choose(r.id)}
           className="shrink-0 overflow-hidden rounded-md p-0"
           style={{
             width: 32,
             height: 56,
-            backgroundColor: "color" in r ? r.color : undefined,
-            backgroundImage: "src" in r ? `url("${sized(r.src, 128)}")` : undefined,
+            backgroundImage: `url("${sized(r.src, 128)}")`,
             backgroundSize: "cover",
             backgroundPosition: "center top",
             border: room === r.id ? "2px solid #ffd34d" : "2px solid rgba(255,255,255,0.25)",
@@ -103,6 +142,12 @@ export function RoomPicker() {
           }}
         />
       ))}
+      {owned !== null && owned.length === 0 ? (
+        <p className="w-full text-sm text-[var(--muted)]">
+          Buy more backgrounds in the{" "}
+          <a href="/shop" className="text-[var(--gold)] underline">Shop</a>.
+        </p>
+      ) : null}
     </div>
   );
 }

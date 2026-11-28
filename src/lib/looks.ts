@@ -27,7 +27,10 @@ export function isAvatarId(v: unknown): v is AvatarId {
   return typeof v === "string" && AVATARS.some((a) => a.id === v);
 }
 
+/** a shop avatar is saved as its picture path; the built-in ones by id */
 export function avatarSrc(id: string | null | undefined) {
+  if (!id) return null;
+  if (id.startsWith("/banners/")) return id;
   return AVATARS.find((a) => a.id === id)?.src ?? null;
 }
 

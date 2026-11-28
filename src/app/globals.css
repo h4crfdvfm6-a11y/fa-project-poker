@@ -3,22 +3,24 @@
 @tailwind utilities;
 
 :root {
-  /* Pantone Blue 072 C ≈ #10069F — Card Sharks-style royal club look */
-  --pantone-072c: #10069f;
-  --royal: #10069f;
-  --royal2: #0b0578;
-  --navy: #030740;
-  --navy2: #010326;
-  --bg0: #010326;
-  --bg1: #10069f;
-  --panel: rgba(8, 31, 130, 0.55);
+  /* COPPER POKER palette: black base, copper and gold accents, silver highlights */
+  --pantone-072c: #0b0b0d;
+  --royal: #0b0b0d;
+  --royal2: #17171a;
+  --navy: #050506;
+  --navy2: #000000;
+  --bg0: #000000;
+  --bg1: #111114;
+  --panel: rgba(28, 28, 32, 0.6);
   --line: rgba(255, 255, 255, 0.12);
-  --gold: #f6c74a;
-  --gold-strong: #ffd76a;
-  --cyan: #21d4ff;
+  --gold: #c9a45c;
+  --gold-strong: #e9cf9e;
+  --copper: #b87333;
+  --silver: #c9cdd3;
+  --cyan: #c9cdd3;
   --felt: #1f6b45;
-  --ink: #f7fbff;
-  --muted: #9da8d7;
+  --ink: #f5f3ef;
+  --muted: #a9a6a0;
   --danger: #ff8b9b;
   --ok: #5dca86;
 }
@@ -44,7 +46,7 @@ body {
   font-family: var(--font-body), sans-serif;
 }
 
-/* Cardsharks-style depth: pantone wash + soft glow + light grid */
+/* Black base with a soft copper glow and a silver highlight */
 body::before {
   content: "";
   position: fixed;
@@ -52,13 +54,13 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 0%, rgba(40, 90, 255, 0.72), transparent 32%),
-    radial-gradient(circle at 12% 40%, rgba(20, 213, 255, 0.16), transparent 30%),
+    radial-gradient(circle at 50% 0%, rgba(184, 115, 51, 0.32), transparent 32%),
+    radial-gradient(circle at 12% 40%, rgba(201, 205, 211, 0.1), transparent 30%),
     linear-gradient(
       180deg,
-      var(--pantone-072c) 0%,
-      #0c0a88 42%,
-      #030747 72%,
+      #1a1a1d 0%,
+      #111114 42%,
+      #0a0a0c 72%,
       var(--navy2) 100%
     );
 }
@@ -82,15 +84,16 @@ a {
   text-decoration: none;
 }
 
+/* Panels: black with a thin gold edge, as in the lobby mockup */
 .panel {
   background: linear-gradient(
       145deg,
-      rgba(8, 31, 130, 0.62),
-      rgba(1, 3, 38, 0.91)
+      rgba(40, 40, 46, 0.62),
+      rgba(8, 8, 10, 0.91)
     );
-  border: 1px solid var(--line);
+  border: 1px solid rgba(201, 164, 92, 0.45);
   border-radius: 18px;
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.26);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(233, 207, 158, 0.12);
   backdrop-filter: blur(14px);
 }
 
@@ -111,20 +114,26 @@ a {
   transform: scale(0.98);
 }
 
+/* Primary button: brushed copper with dark text, as in the Log in and Join buttons */
 .btn-gold {
-  background: linear-gradient(180deg, #ffe7a1, var(--gold));
-  color: #1d1404;
+  background: linear-gradient(180deg, #d89a6a 0%, #b87333 50%, #8a5126 100%);
+  color: #120a04;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 200, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
+/* Secondary button: black with a gold outline and gold text, as in Create account */
 .btn-ghost {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  color: var(--ink);
+  background: rgba(10, 10, 12, 0.9);
+  border: 1px solid rgba(201, 164, 92, 0.6);
+  color: var(--gold-strong);
 }
 
 .btn-ghost:hover {
-  border-color: rgba(33, 212, 255, 0.45);
-  box-shadow: 0 0 22px rgba(33, 212, 255, 0.18);
+  border-color: rgba(233, 207, 158, 0.9);
+  box-shadow: 0 0 22px rgba(201, 164, 92, 0.22);
 }
 
 .btn-danger {
@@ -133,28 +142,30 @@ a {
   color: #ffb4b6;
 }
 
+/* Inputs: black with a gold edge */
 .field {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(157, 168, 215, 0.35);
-  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(201, 164, 92, 0.5);
+  background: rgba(0, 0, 0, 0.35);
   color: var(--ink);
   padding: 12px 14px;
   outline: none;
 }
 
 .field:focus {
-  border-color: rgba(33, 212, 255, 0.55);
-  outline: 2px solid rgba(33, 212, 255, 0.35);
+  border-color: rgba(184, 115, 51, 0.8);
+  outline: 2px solid rgba(184, 115, 51, 0.35);
   outline-offset: 1px;
 }
 
+/* Labels: gold capitals, as in the mockup */
 .label {
   display: block;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--gold-strong);
   margin-bottom: 6px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -206,14 +217,14 @@ a {
 }
 
 .premium-glow {
-  box-shadow: 0 0 0 1px rgba(246, 199, 74, 0.55), 0 0 18px rgba(246, 199, 74, 0.45);
+  box-shadow: 0 0 0 1px rgba(201, 164, 92, 0.55), 0 0 18px rgba(201, 164, 92, 0.45);
   animation: premium-pulse 1.4s ease-in-out infinite;
 }
 
 .premium-banner {
   background: radial-gradient(
     ellipse at 50% 0%,
-    rgba(246, 199, 74, 0.22),
+    rgba(201, 164, 92, 0.22),
     transparent 70%
   );
   animation: premium-pulse 1.8s ease-in-out infinite;
@@ -247,13 +258,13 @@ a {
   }
 }
 
-/* Table felt: the owner's Shark Club logo (two sharks + name) under the flop,
-   replacing the old "SHARK CLUB" text (table-landscape.css .cs-center::after). */
+/* Table felt: the COPPER POKER medallion, printed in the middle under the flop,
+   on every felt. It replaces the Shark Club logo (logo-gap65.png). */
 .cs-room .cs-center::after {
   content: "";
-  width: min(44cqw, 180px);
-  aspect-ratio: 1983 / 793;
-  background: url("/banners/logo-gap65.png") center / contain no-repeat;
+  width: min(30cqw, 120px);
+  aspect-ratio: 1 / 1;
+  background: url("/banners/Copper%20Poker%20Art%20Deco%20Medallion.png") center / contain no-repeat;
   text-shadow: none;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }

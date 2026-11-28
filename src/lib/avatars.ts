@@ -19,8 +19,29 @@ function ensureTable() {
   return ready;
 }
 
+/** true when the player bought this shop avatar (asset path such as /banners/...) */
+async function ownsShopAvatar(memberId: string, assetPath: string) {
+  try {
+    const rows = await sql(
+      `select 1 from member_inventory mi
+       join shop_catalog c on c.id = mi.item_id
+       where mi.member_id = $1 and c.kind = 'avatar' and c.asset_key = $2
+       limit 1`,
+      [memberId, assetPath],
+    );
+    return rows.length > 0;
+  } catch {
+    // the shop tables are created the first time the shop opens
+    return false;
+  }
+}
+
 export async function setAvatar(memberId: string, avatar: string) {
-  if (!isAvatarId(avatar)) throw new Error("Unknown avatar");
+  if (avatar.startsWith("/banners/")) {
+    if (!(await ownsShopAvatar(memberId, avatar))) throw new Error("Buy that avatar in the Shop first");
+  } else if (!isAvatarId(avatar)) {
+    throw new Error("Unknown avatar");
+  }
   await ensureTable();
   await sql(
     `insert into member_avatars (member_id, avatar) values ($1, $2)

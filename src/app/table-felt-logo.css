@@ -1,0 +1,18 @@
+/* The Copper medallion printed into the felt. A round clip removes the square
+   black corners, and screen blending lets the felt show through the black. */
+.cs-room .cs-table::before {
+  background: url("/banners/Copper%20Poker%20Art%20Deco%20Medallion.png") center / cover no-repeat;
+  border-radius: 50%;
+  overflow: hidden;
+  opacity: 0.4;
+  mix-blend-mode: screen;
+}
+
+/* The logo under the flop (.cs-center::after, set in globals.css) is the one players see.
+   Same print treatment: the PNG's black square is clipped round and blended into the felt. */
+html .cs-room .cs-center::after {
+  border-radius: 50%;
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  filter: none;
+}
