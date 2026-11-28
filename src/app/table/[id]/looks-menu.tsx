@@ -5,6 +5,26 @@ import { DECKS, DECK_KEY, FACES, FACE_KEY, sized } from "@/lib/looks";
 
 type OwnedAvatar = { id: string; title: string; asset_key: string };
 
+/** the shop items this player owns (ids), or null while loading */
+function useOwnedIds() {
+  const [owned, setOwned] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/shop", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: { me?: { owned?: string[] } | null }) => {
+        if (alive) setOwned(new Set(json.me?.owned ?? []));
+      })
+      .catch(() => {
+        if (alive) setOwned(new Set());
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return owned;
+}
+
 /** Table menu: choose your avatar from the ones you own (everyone sees it). */
 export function AvatarPicker({
   current,
@@ -74,9 +94,10 @@ export function AvatarPicker({
   );
 }
 
-/** Table menu: choose the back of the cards (on this phone). */
+/** Table menu: choose the back of the cards (on this phone). The dark back is free; others are bought in the shop. */
 export function DeckPicker() {
   const [deck, setDeck] = useState("dark");
+  const owned = useOwnedIds();
 
   useEffect(() => {
     try {
@@ -97,9 +118,11 @@ export function DeckPicker() {
     }
   }
 
+  const shown = DECKS.filter((d) => d.id === "dark" || owned?.has(`deck_${d.id}`));
+
   return (
     <div className="flex flex-wrap gap-2">
-      {DECKS.map((d) => (
+      {shown.map((d) => (
         <button
           key={d.id}
           type="button"
@@ -118,13 +141,20 @@ export function DeckPicker() {
           <img src={sized(d.src, 128)} alt="" className="h-full w-full object-cover" />
         </button>
       ))}
+      {owned !== null && shown.length === 1 ? (
+        <p className="w-full text-sm text-[var(--muted)]">
+          Buy more card backs in the{" "}
+          <a href="/shop" className="text-[var(--gold)] underline">Shop</a>.
+        </p>
+      ) : null}
     </div>
   );
 }
 
-/** Table menu: choose the card fronts (on this phone). Each tile is a little ace of clubs. */
+/** Table menu: choose the card fronts (on this phone). The classic face is free; others are bought in the shop. */
 export function FacePicker() {
   const [face, setFace] = useState("classic");
+  const owned = useOwnedIds();
 
   useEffect(() => {
     try {
@@ -145,9 +175,11 @@ export function FacePicker() {
     }
   }
 
+  const shown = FACES.filter((f) => f.id === "classic" || owned?.has(`face_${f.id}`));
+
   return (
     <div className="flex flex-wrap gap-2">
-      {FACES.map((f) => (
+      {shown.map((f) => (
         <button
           key={f.id}
           type="button"
@@ -166,6 +198,12 @@ export function FacePicker() {
           <span>{f.id === "colour" ? "A" : "♣︎"}</span>
         </button>
       ))}
+      {owned !== null && shown.length === 1 ? (
+        <p className="w-full text-sm text-[var(--muted)]">
+          Buy more card fronts in the{" "}
+          <a href="/shop" className="text-[var(--gold)] underline">Shop</a>.
+        </p>
+      ) : null}
     </div>
   );
 }
