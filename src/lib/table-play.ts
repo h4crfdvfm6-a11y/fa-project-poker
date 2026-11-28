@@ -51,7 +51,7 @@ import {
 } from "./tournament-rebuy";
 import { cardId } from "./poker/cards";
 import { bestHand } from "./poker/eval";
-import { bbjpPaidAmount, bbjpTierOf } from "./bbjp-payouts";
+import { BBJP_POOL_CEILING, bbjpPaidAmount, bbjpTierOf } from "./bbjp-payouts";
 import {
   getTournamentByTable,
   markBustedPlayers,
@@ -459,13 +459,39 @@ async function applyHandEconomy(tableId: string, state: EngineState) {
     );
   }
   if (bbjpFee > 0) {
-    const hand = await bumpBbjpCollections(bbjpFee);
-    await sql(
+    // Collect into the jackpot only while the pool is below the ceiling.
+    const collected = await sql(
       `update bbjp_settings
-       set balance = balance + $1, trigger_hand = $2, updated_at = now()
-       where club_id = $3`,
-      [bbjpFee, hand, DEFAULT_CLUB_ID],
+       set balance = balance + $1, updated_at = now()
+       where club_id = $2 and balance < $3
+       returning balance`,
+      [bbjpFee, DEFAULT_CLUB_ID, BBJP_POOL_CEILING],
     );
+    if (collected.length) {
+      const hand = await bumpBbjpCollections(bbjpFee);
+      await sql(
+        `update bbjp_settings set trigger_hand = $2, updated_at = now() where club_id = $1`,
+        [DEFAULT_CLUB_ID, hand],
+      );
+    } else {
+      // Pool is at the ceiling: this fee goes back to the players dealt into the hand.
+      const recipients = state.dealtIn
+        .map((seat) => state.seats.find((s) => s.seat === seat))
+        .filter(Boolean) as typeof state.seats;
+      if (recipients.length) {
+        const each = Math.floor((bbjpFee / recipients.length) * 100) / 100;
+        let given = 0;
+        recipients.forEach((p, i) => {
+          const amt =
+            i === recipients.length - 1
+              ? Math.round((bbjpFee - given) * 100) / 100
+              : each;
+          given += amt;
+          p.stack += amt;
+        });
+        state.log.push(`BBJP pool full: ${bbjpFee} returned to the table`);
+      }
+    }
   }
   if (state.result.bbjpHit) {
     const claimed = await sql<{ pool: string }>(
