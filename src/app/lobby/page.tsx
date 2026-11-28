@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BrandMark } from "../brand-mark";
 import { LobbyWater } from "../lobby-water";
 import { LobbyTournaments, type LobbyTournament } from "./lobby-tournaments";
+import { JackpotBanner } from "./jackpot-banner";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { GAME_TYPES, gameTypeLabel, isGameType } from "@/lib/poker/variants";
 
@@ -146,25 +147,17 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      <div className="bbjp-panel mb-4 flex items-center justify-between px-4 py-3">
-        <div>
-          <div className="bbjp-label text-xs uppercase tracking-wider">
-            Bad Beat Jackpot
-          </div>
-          <div className="brand bbjp-amount text-2xl">
-            {money(data.bbjp.balance)}
-          </div>
-        </div>
-        <div className="bbjp-meta text-right text-xs">
-          <div>{data.bbjp.enabled || data.tables.some((t) => t.bbjp_enabled) ? "Live" : "Off"}</div>
-          <div>
-            Min {data.bbjp.minimum_hand || data.bbjp.trigger_hand}
-          </div>
-          <div>
-            Cycle {money(data.bbjp.cycle_collections ?? 0)}
+      <section aria-label="Bad Beat Jackpot" className="mb-4 overflow-hidden rounded-2xl border border-[var(--line)] bg-[#141414]">
+        <JackpotBanner />
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 text-[11px] text-[#d8d1c9]">
+          <span className="font-semibold text-[var(--gold)]">Jackpot {money(data.bbjp.balance)}</span>
+          <div className="flex flex-wrap gap-x-2">
+            <span>{data.bbjp.enabled || data.tables.some((t) => t.bbjp_enabled) ? "Live" : "Off"}</span>
+            <span>Min {data.bbjp.minimum_hand || data.bbjp.trigger_hand}</span>
+            <span>Cycle {money(data.bbjp.cycle_collections ?? 0)}</span>
           </div>
         </div>
-      </div>
+      </section>
 
       {data.me ? (
         <div className="mb-5 flex items-center justify-between rounded-xl border border-[var(--line)] bg-black/20 px-4 py-3">
