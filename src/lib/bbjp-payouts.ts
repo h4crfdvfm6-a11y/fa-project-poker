@@ -14,6 +14,12 @@ export const BBJP_PAYOUTS = [
 
 export type BbjpPayoutHand = (typeof BBJP_PAYOUTS)[number]["hand"];
 
+/**
+ * Pool ceiling: once the pool reaches this amount, new fees stop going into it and
+ * go back to the players dealt into that hand. Twice the top payout, so a royal flush is always covered.
+ */
+export const BBJP_POOL_CEILING = 100_000;
+
 /** The hand tier for a hand score (from poker/eval), or null if it has no jackpot tier. */
 export function bbjpTierOf(score: number[]): BbjpPayoutHand | null {
   const cat = score[0] ?? -1;
