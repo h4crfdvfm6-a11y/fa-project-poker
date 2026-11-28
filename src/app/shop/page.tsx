@@ -35,10 +35,10 @@ const THEME_LABEL: Record<string, string> = {
   urban: "Urban",
 };
 
-const BASIC_KINDS = ["felt", "card_back", "reaction_pack"];
+const BASIC_KINDS = ["felt", "card_face", "reaction_pack"];
 const BASIC_LABEL: Record<string, string> = {
   felt: "Table skins",
-  card_back: "Card backs",
+  card_face: "Card faces",
   reaction_pack: "Reactions",
 };
 const PACK_KINDS = ["copper_pack", "chip_pack"];
@@ -101,6 +101,8 @@ export default function ShopPage() {
     backgrounds: catalog.filter((i) => i.kind === "background" && i.theme === theme),
   })).filter((t) => t.avatars.length || t.backgrounds.length);
 
+  const cardBacks = catalog.filter((i) => i.kind === "card_back");
+
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-5 pb-12 pt-[max(20px,env(safe-area-inset-top))]">
       <div className="mb-5 flex items-start justify-between gap-3">
@@ -137,7 +139,7 @@ export default function ShopPage() {
       )}
 
       <p className="mb-4 text-sm text-[var(--muted)]">
-        Tap a picture to see it full screen. Backgrounds are picked at the table, in the ☰ menu.
+        Tap a picture to see it full screen. Owned backgrounds, card backs and card faces are picked at the table, in the ☰ menu.
       </p>
 
       {error ? <p className="mb-3 text-sm text-[#ffb4b6]">{error}</p> : null}
@@ -205,18 +207,43 @@ export default function ShopPage() {
         );
       })}
 
+      {cardBacks.length ? (
+        <details className="panel mb-3 p-4">
+          <summary className="brand cursor-pointer text-lg">
+            Card backs
+            <span className="ml-2 text-sm text-[var(--muted)]">
+              The black back is free
+            </span>
+          </summary>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {cardBacks.map((item) => (
+              <Tile
+                key={item.id}
+                item={item}
+                isOwned={owned.has(item.id)}
+                selected={false}
+                onOpen={() => setPreview(item)}
+              />
+            ))}
+          </div>
+        </details>
+      ) : null}
+
       {BASIC_KINDS.map((kind) => {
         const items = catalog.filter((i) => i.kind === kind);
         if (!items.length) return null;
         return (
           <details key={kind} className="panel mb-3 p-4">
-            <summary className="brand cursor-pointer text-lg">{BASIC_LABEL[kind]}</summary>
+            <summary className="brand cursor-pointer text-lg">
+              {BASIC_LABEL[kind]}
+              {kind === "card_face" ? (
+                <span className="ml-2 text-sm text-[var(--muted)]">The classic face is free</span>
+              ) : null}
+            </summary>
             <div className="mt-4 grid gap-3">
               {items.map((item) => {
                 const isOwned = owned.has(item.id);
-                const equipped =
-                  (kind === "felt" && me?.equipped_felt === item.asset_key) ||
-                  (kind === "card_back" && me?.equipped_card_back === item.asset_key);
+                const equipped = kind === "felt" && me?.equipped_felt === item.asset_key;
                 return (
                   <div key={item.id} className="flex items-center justify-between gap-3">
                     <div>
@@ -224,19 +251,17 @@ export default function ShopPage() {
                       <p className="text-sm text-[var(--muted)]">{item.description}</p>
                     </div>
                     {isOwned ? (
-                      kind === "reaction_pack" ? (
-                        <span className="chip">Owned</span>
-                      ) : (
+                      kind === "felt" ? (
                         <button
                           type="button"
                           className="btn btn-ghost !py-2 !text-sm"
                           disabled={busy || equipped}
-                          onClick={() =>
-                            equip(kind as "felt" | "card_back", item.asset_key)
-                          }
+                          onClick={() => equip("felt", item.asset_key)}
                         >
                           {equipped ? "Equipped" : "Equip"}
                         </button>
+                      ) : (
+                        <span className="chip">Owned</span>
                       )
                     ) : (
                       <button
@@ -285,11 +310,7 @@ export default function ShopPage() {
         <Preview
           item={preview}
           isOwned={owned.has(preview.id)}
-          isEquipped={
-            (preview.kind === "avatar" && me?.equipped_avatar === preview.asset_key) ||
-            (preview.kind === "felt" && me?.equipped_felt === preview.asset_key) ||
-            (preview.kind === "card_back" && me?.equipped_card_back === preview.asset_key)
-          }
+          isEquipped={preview.kind === "avatar" && me?.equipped_avatar === preview.asset_key}
           canAct={Boolean(me) && !busy}
           onBuy={() => buy(preview.id)}
           onUse={() => {
