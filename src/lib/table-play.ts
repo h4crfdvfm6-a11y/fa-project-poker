@@ -50,6 +50,8 @@ import {
   tournamentRebuyView,
 } from "./tournament-rebuy";
 import { cardId } from "./poker/cards";
+import { bestHand } from "./poker/eval";
+import { bbjpPaidAmount, bbjpTierOf } from "./bbjp-payouts";
 import {
   getTournamentByTable,
   markBustedPlayers,
@@ -482,33 +484,47 @@ async function applyHandEconomy(tableId: string, state: EngineState) {
     const pool = num(claimed[0]?.pool ?? 0);
     if (pool > 0) {
       const hit = state.result.bbjpHit;
-      const loserPay = Math.floor(pool * hit.loserShare * 100) / 100;
-      const winnerPay = Math.floor(pool * hit.winnerShare * 100) / 100;
-      const othersPool = Math.max(0, pool - loserPay - winnerPay);
       const loser = state.seats.find((s) => s.seat === hit.loserSeat)!;
       const winner = state.seats.find((s) => s.seat === hit.winnerSeat)!;
-      loser.stack += loserPay;
-      winner.stack += winnerPay;
-      const others = hit.others
-        .map((seat) => state.seats.find((s) => s.seat === seat))
-        .filter(Boolean);
-      if (others.length) {
-        const each = Math.floor((othersPool / others.length) * 100) / 100;
-        let paid = 0;
-        others.forEach((o, i) => {
-          const amt =
-            i === others.length - 1
-              ? Math.round((othersPool - paid) * 100) / 100
-              : each;
-          paid += amt;
-          o!.stack += amt;
-        });
+      // The losing hand picks the fixed amount (royal flush, straight flush,
+      // four of a kind, full house); it is capped at the pool. Anything not
+      // paid goes back into the jackpot.
+      const tier = bbjpTierOf(bestHand(loser.hole, state.board, state.gameType).score);
+      const paid = bbjpPaidAmount(pool, tier);
+      const leftover = Math.round((pool - paid) * 100) / 100;
+      if (leftover > 0) {
+        await sql(
+          `update bbjp_settings set balance = balance + $1, updated_at = now() where club_id = $2`,
+          [leftover, DEFAULT_CLUB_ID],
+        );
       }
-      // Award starts a new jackpot collections cycle (ladder → AAAKK).
-      await resetBbjpCollectionsCycle();
-      state.log.push(
-        `BBJP paid ${loserPay} to ${loser.name}, ${winnerPay} to ${winner.name} · ladder reset`,
-      );
+      if (paid > 0) {
+        const loserPay = Math.floor(paid * hit.loserShare * 100) / 100;
+        const winnerPay = Math.floor(paid * hit.winnerShare * 100) / 100;
+        const othersPool = Math.max(0, Math.round((paid - loserPay - winnerPay) * 100) / 100);
+        loser.stack += loserPay;
+        winner.stack += winnerPay;
+        const others = hit.others
+          .map((seat) => state.seats.find((s) => s.seat === seat))
+          .filter(Boolean);
+        if (others.length) {
+          const each = Math.floor((othersPool / others.length) * 100) / 100;
+          let paidOthers = 0;
+          others.forEach((o, i) => {
+            const amt =
+              i === others.length - 1
+                ? Math.round((othersPool - paidOthers) * 100) / 100
+                : each;
+            paidOthers += amt;
+            o!.stack += amt;
+          });
+        }
+        // Award starts a new jackpot collections cycle (ladder → AAAKK).
+        await resetBbjpCollectionsCycle();
+        state.log.push(
+          `BBJP ${tier ?? ""} paid ${loserPay} to ${loser.name}, ${winnerPay} to ${winner.name} · ladder reset`,
+        );
+      }
     }
   }
   // Persist BBJP awards for this hand only — never clobber a newer deal.
