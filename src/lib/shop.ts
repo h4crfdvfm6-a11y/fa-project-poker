@@ -2,6 +2,7 @@ import { DEFAULT_CLUB_ID, ensureClubSeeded, num } from "./club";
 import { sql, withTransaction } from "./db";
 import { id } from "./ids";
 import { ensureOnce } from "./schema-once";
+import { DECKS, FACES } from "./looks";
 
 export type ShopItem = {
   id: string;
@@ -52,12 +53,36 @@ function item(
 const pad = (n: number) => String(n).padStart(2, "0");
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
-// ---- Free items: felts and card backs ----
+// ---- Free items: felts ----
 item({ id: "felt_midnight", kind: "felt", title: "Midnight Felt", description: "Deep blue table felt", asset_key: "felt_midnight" });
 item({ id: "felt_ember", kind: "felt", title: "Ember Felt", description: "Warm ember table felt", asset_key: "felt_ember" });
 item({ id: "felt_jade", kind: "felt", title: "Jade Felt", description: "Classic jade table felt", asset_key: "felt_jade" });
-item({ id: "back_gold", kind: "card_back", title: "Gold Card Back", description: "Gold-trimmed card backs", asset_key: "back_gold" });
-item({ id: "back_rose", kind: "card_back", title: "Rose Card Back", description: "Rose card backs", asset_key: "back_rose" });
+
+// ---- Card backs: the dark back is free (the default); the others cost copper ----
+for (const d of DECKS) {
+  if (d.id === "dark") continue;
+  item({
+    id: `deck_${d.id}`,
+    kind: "card_back",
+    title: `${d.label} Card Back`,
+    description: "Card back for the table",
+    asset_key: d.src,
+    copper_price: 150,
+  });
+}
+
+// ---- Card faces: the classic face is free (the default); the others cost copper ----
+for (const f of FACES) {
+  if (f.id === "classic") continue;
+  item({
+    id: `face_${f.id}`,
+    kind: "card_face",
+    title: `${f.label} Cards`,
+    description: "Card faces for the table",
+    asset_key: `face_${f.id}`,
+    copper_price: 150,
+  });
+}
 
 // ---- Theme sets: the package bundles the rest ----
 const THEMES = [
@@ -214,12 +239,21 @@ item({ id: "pack_chips_10k", kind: "chip_pack", title: "10,000 Chips", descripti
 item({ id: "pack_chips_60k", kind: "chip_pack", title: "60,000 Chips", description: "Play money chips, no cash-out", asset_key: "", chip_amount: 60000, price_cents: 499 });
 item({ id: "pack_chips_150k", kind: "chip_pack", title: "150,000 Chips", description: "Play money chips, no cash-out", asset_key: "", chip_amount: 150000, price_cents: 999 });
 
-// Items from the old catalog that are no longer sold (gem prices, emoji avatars).
-const RETIRED_IDS = ["pack_starter", "pack_plus", "pack_stack", "avatar_fox", "avatar_owl", "avatar_crown"];
+// Items from the old catalog that are no longer sold (gem prices, emoji avatars, the old free card backs).
+const RETIRED_IDS = [
+  "pack_starter",
+  "pack_plus",
+  "pack_stack",
+  "avatar_fox",
+  "avatar_owl",
+  "avatar_crown",
+  "back_gold",
+  "back_rose",
+];
 
 async function ensureShopSchema() {
-  // v2: re-seeds prices (one free avatar; sea theme and the other avatars cost copper)
-  await ensureOnce("shop-schema-copper-v2", async () => {
+  // v3: card backs and card faces are sold; the dark back and classic face stay free
+  await ensureOnce("shop-schema-copper-v3", async () => {
     await sql(`alter table members add column if not exists gem_balance integer not null default 0`);
     await sql(`alter table members add column if not exists copper_balance integer not null default 0`);
     await sql(
@@ -482,8 +516,6 @@ export async function purchaseShopItem(memberId: string, itemId: string) {
           await q(`update members set equipped_avatar = $1 where id = $2`, [item.asset_key, memberId]);
         } else if (item.kind === "felt") {
           await q(`update members set equipped_felt = $1 where id = $2`, [item.asset_key, memberId]);
-        } else if (item.kind === "card_back") {
-          await q(`update members set equipped_card_back = $1 where id = $2`, [item.asset_key, memberId]);
         }
       }
     }
